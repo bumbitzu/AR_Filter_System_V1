@@ -4,4 +4,5 @@ numpy~=2.2.6
 requests~=2.31.0
 pyvirtualcam~=0.11.1
 Flask~=3.1.2
+python-dotenv~=1.0.0
 pygrabber~=0.1; sys_platform == 'win32'

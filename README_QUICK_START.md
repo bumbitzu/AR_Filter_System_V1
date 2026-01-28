@@ -6,6 +6,44 @@
 pip install -r requirements.txt
 ```
 
+## ⚙️ Configurare Environment (ВАЖНО!)
+
+Sistemul folosește fișiere `.env` pentru configurare. Există 2 environment-uri:
+
+### Test Mode (Implicit)
+Folosit pentru testare cu mock server local.
+
+**Activare automată:**
+Fișierul `.env` este deja configurat pentru test mode.
+
+**Activare manuală (opțional):**
+```bash
+# Windows
+copy .env.test .env
+
+# Linux/Mac
+cp .env.test .env
+```
+
+### Production Mode
+Folosit cu API-uri reale. **Necesită API keys!**
+
+1. Completează `.env.production` cu API keys reale
+2. Activează:
+```bash
+# Windows
+copy .env.production .env
+
+# Linux/Mac
+cp .env.production .env
+```
+
+**🎯 Shortcut:** Rulează `switch_env.bat` (Windows) pentru meniu interactiv!
+
+📖 **Detalii complete:** Vezi [ENV_GUIDE.md](ENV_GUIDE.md)
+
+---
+
 ## 🎯 Utilizare Rapidă
 
 ### Pas 1: Pornește Mock Server

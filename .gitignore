@@ -39,6 +39,8 @@ Thumbs.db
 # Security - API Keys and Sensitive Config
 config_production.py
 .env
+.env.production
+.env.local
 *.secret
 *.key
 api_keys.txt

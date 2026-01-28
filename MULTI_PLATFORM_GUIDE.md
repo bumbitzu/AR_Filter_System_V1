@@ -147,7 +147,7 @@ if __name__ == "__main__":
         chaturbate_url=CHATURBATE_URL,
         stripchat_url=STRIPCHAT_URL,
         camsoda_url=CAMSODA_URL,
-        output_mode="vcam",
+        output_mode="window",  # sau "vcam" pentru virtual camera
         quality="1080p"
     )
     app.run()

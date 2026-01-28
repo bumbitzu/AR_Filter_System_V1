@@ -16,6 +16,7 @@ import cv2
 import time
 import threading
 import requests
+from dotenv import load_dotenv
 from core.OutputManager import OutputManager
 from core.ChaturbateListener import ChaturbateListener
 from core.StripchatListener import StripchatListener
@@ -23,6 +24,7 @@ from core.CamsodaListener import CamsodaListener
 from filters.FaceMask3DFilter import FaceMask3D
 from filters.BigEyeFilter import BigEyeFilter
 from filters.RainSparkleFilter import RainSparkleFilter
+from filters.RabbitEarsFilter import RabbitEarsFilter
 from collections import deque
 
 try:
@@ -52,6 +54,7 @@ class CameraFiltersAutomation:
         # Define Tiers: (Min_Tokens, Max_Tokens, Filter_Key, Duration)
         self.fixed_tips = {
             33:  ('Sparkles', RainSparkleFilter(), 10),
+            50:  ('Rabbit Ears', RabbitEarsFilter(), 15),
             99:  ('Big Eyes', BigEyeFilter(), 20),
             200: ('Cyber Mask', FaceMask3D(), 30)
         }
@@ -249,22 +252,75 @@ class CameraFiltersAutomation:
         self.cap.release()
 
 
+def load_config_from_env():
+    """
+    Încarcă configurația din fișierul .env
+    Returns: dict cu configurația aplicației
+    """
+    # Încarcă .env file
+    load_dotenv()
+    
+    # Helper function pentru boolean values
+    def str_to_bool(value):
+        if isinstance(value, bool):
+            return value
+        return value.lower() in ('true', '1', 'yes', 'on') if value else False
+    
+    # Citește environment variables
+    environment = os.getenv('ENVIRONMENT', 'test')
+    
+    config = {
+        'environment': environment,
+        'chaturbate_url': os.getenv('CHATURBATE_URL') if str_to_bool(os.getenv('CHATURBATE_ENABLED', 'true')) else None,
+        'stripchat_url': os.getenv('STRIPCHAT_URL') if str_to_bool(os.getenv('STRIPCHAT_ENABLED', 'true')) else None,
+        'camsoda_url': os.getenv('CAMSODA_URL') if str_to_bool(os.getenv('CAMSODA_ENABLED', 'true')) else None,
+        'output_mode': os.getenv('OUTPUT_MODE', 'window'),
+        'quality': os.getenv('QUALITY', '1080p'),
+        'camera_index': int(os.getenv('CAMERA_INDEX', '0')),
+        'debug_mode': str_to_bool(os.getenv('DEBUG_MODE', 'false')),
+        'verbose_logging': str_to_bool(os.getenv('VERBOSE_LOGGING', 'false'))
+    }
+    
+    return config
+
+
 if __name__ == "__main__":
-    # Configurare URL-uri pentru fiecare platformă
-    # Setează pe None platformele care nu sunt folosite
-    CHATURBATE_URL = "http://127.0.0.1:5000/events/chaturbate"
-    STRIPCHAT_URL = "http://127.0.0.1:5000/events/stripchat"
-    CAMSODA_URL = "http://127.0.0.1:5000/events/camsoda"
+    # Încarcă configurația din .env
+    config = load_config_from_env()
     
-    # Exemplu: Pentru a dezactiva o platformă, setează URL-ul pe None:
-    # STRIPCHAT_URL = None
+    # Afișează informații despre configurație
+    print("=" * 60)
+    print(f"🚀 AR FILTER SYSTEM - {config['environment'].upper()} MODE")
+    print("=" * 60)
+    print(f"\n📡 Platforme configurate:")
+    if config['chaturbate_url']:
+        print(f"   ✅ Chaturbate: {config['chaturbate_url']}")
+    else:
+        print(f"   ❌ Chaturbate: Disabled")
     
+    if config['stripchat_url']:
+        print(f"   ✅ Stripchat: {config['stripchat_url']}")
+    else:
+        print(f"   ❌ Stripchat: Disabled")
+    
+    if config['camsoda_url']:
+        print(f"   ✅ Camsoda: {config['camsoda_url']}")
+    else:
+        print(f"   ❌ Camsoda: Disabled")
+    
+    print(f"\n⚙️  Settings:")
+    print(f"   Output Mode: {config['output_mode']}")
+    print(f"   Quality: {config['quality']}")
+    print(f"   Debug Mode: {'On' if config['debug_mode'] else 'Off'}")
+    print("=" * 60 + "\n")
+    
+    # Inițializează aplicația cu configurația din .env
     app = CameraFiltersAutomation(
-        chaturbate_url=CHATURBATE_URL,
-        stripchat_url=STRIPCHAT_URL,
-        camsoda_url=CAMSODA_URL,
-        output_mode="vcam",
-        quality="1080p"
+        chaturbate_url=config['chaturbate_url'],
+        stripchat_url=config['stripchat_url'],
+        camsoda_url=config['camsoda_url'],
+        output_mode=config['output_mode'],
+        quality=config['quality']
     )
     app.run()
 

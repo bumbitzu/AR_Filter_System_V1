@@ -215,6 +215,7 @@ def home():
             <h2>🎯 Filtre Disponibile</h2>
             <ul>
                 <li><strong>33 tokens</strong> → Sparkles (10s)</li>
+                <li><strong>50 tokens</strong> → Rabbit Ears 🐰 (15s)</li>
                 <li><strong>99 tokens</strong> → Big Eyes (20s)</li>
                 <li><strong>200 tokens</strong> → Cyber Mask (30s)</li>
             </ul>
@@ -224,22 +225,25 @@ def home():
                 <p><strong>Chaturbate:</strong></p>
                 <ul>
                     <li><a href="/trigger/chaturbate/33/TestUser1" target="_blank">33 tokens (Sparkles)</a></li>
-                    <li><a href="/trigger/chaturbate/99/TestUser2" target="_blank">99 tokens (Big Eyes)</a></li>
-                    <li><a href="/trigger/chaturbate/200/TestUser3" target="_blank">200 tokens (Cyber Mask)</a></li>
+                    <li><a href="/trigger/chaturbate/50/TestUser2" target="_blank">50 tokens (Rabbit Ears 🐰)</a></li>
+                    <li><a href="/trigger/chaturbate/99/TestUser3" target="_blank">99 tokens (Big Eyes)</a></li>
+                    <li><a href="/trigger/chaturbate/200/TestUser4" target="_blank">200 tokens (Cyber Mask)</a></li>
                 </ul>
                 
                 <p><strong>Stripchat:</strong></p>
                 <ul>
                     <li><a href="/trigger/stripchat/33/StripUser1" target="_blank">33 tokens (Sparkles)</a></li>
-                    <li><a href="/trigger/stripchat/99/StripUser2" target="_blank">99 tokens (Big Eyes)</a></li>
-                    <li><a href="/trigger/stripchat/200/StripUser3" target="_blank">200 tokens (Cyber Mask)</a></li>
+                    <li><a href="/trigger/stripchat/50/StripUser2" target="_blank">50 tokens (Rabbit Ears 🐰)</a></li>
+                    <li><a href="/trigger/stripchat/99/StripUser3" target="_blank">99 tokens (Big Eyes)</a></li>
+                    <li><a href="/trigger/stripchat/200/StripUser4" target="_blank">200 tokens (Cyber Mask)</a></li>
                 </ul>
                 
                 <p><strong>Camsoda:</strong></p>
                 <ul>
                     <li><a href="/trigger/camsoda/33/CamUser1" target="_blank">33 tokens (Sparkles)</a></li>
-                    <li><a href="/trigger/camsoda/99/CamUser2" target="_blank">99 tokens (Big Eyes)</a></li>
-                    <li><a href="/trigger/camsoda/200/CamUser3" target="_blank">200 tokens (Cyber Mask)</a></li>
+                    <li><a href="/trigger/camsoda/50/CamUser2" target="_blank">50 tokens (Rabbit Ears 🐰)</a></li>
+                    <li><a href="/trigger/camsoda/99/CamUser3" target="_blank">99 tokens (Big Eyes)</a></li>
+                    <li><a href="/trigger/camsoda/200/CamUser4" target="_blank">200 tokens (Cyber Mask)</a></li>
                 </ul>
             </div>
             
