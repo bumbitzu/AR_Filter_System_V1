@@ -12,6 +12,8 @@ class OutputManager:
         self.vcam = None
         if quality == "4K":
             self.width, self.height, self.fps = 3840, 2160, 30
+        elif quality == "720p":
+            self.width, self.height, self.fps = 1280, 720, 60
         else:  # Default 1080p
             self.width, self.height, self.fps = 1920, 1080, 60
 
