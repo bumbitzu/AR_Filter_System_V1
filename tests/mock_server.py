@@ -162,8 +162,63 @@ def home():
             }
             a:hover {
                 text-decoration: underline;
+                cursor: pointer;
+            }
+            .notification {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: rgba(0, 255, 136, 0.9);
+                color: #000;
+                padding: 15px 25px;
+                border-radius: 8px;
+                font-weight: bold;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                animation: slideIn 0.3s ease-out;
+                z-index: 1000;
+            }
+            @keyframes slideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
             }
         </style>
+        <script>
+            function sendTip(url, description) {
+                // Send the request in the background
+                fetch(url)
+                    .then(response => response.text())
+                    .then(data => {
+                        showNotification(`✅ ${description}`);
+                    })
+                    .catch(error => {
+                        showNotification(`❌ Error: ${error}`);
+                    });
+                
+                // Prevent default link behavior
+                return false;
+            }
+            
+            function showNotification(message) {
+                // Create notification element
+                const notif = document.createElement('div');
+                notif.className = 'notification';
+                notif.textContent = message;
+                document.body.appendChild(notif);
+                
+                // Remove after 3 seconds
+                setTimeout(() => {
+                    notif.style.opacity = '0';
+                    notif.style.transform = 'translateX(400px)';
+                    setTimeout(() => notif.remove(), 300);
+                }, 3000);
+            }
+        </script>
     </head>
     <body>
         <div class="container">
@@ -224,26 +279,26 @@ def home():
                 <h3>🧪 Link-uri de Testare Rapidă</h3>
                 <p><strong>Chaturbate:</strong></p>
                 <ul>
-                    <li><a href="/trigger/chaturbate/33/TestUser1" target="_blank">33 tokens (Sparkles)</a></li>
-                    <li><a href="/trigger/chaturbate/50/TestUser2" target="_blank">50 tokens (Rabbit Ears 🐰)</a></li>
-                    <li><a href="/trigger/chaturbate/99/TestUser3" target="_blank">99 tokens (Big Eyes)</a></li>
-                    <li><a href="/trigger/chaturbate/200/TestUser4" target="_blank">200 tokens (Cyber Mask)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/33/TestUser1', 'Chaturbate: 33 tokens (Sparkles)')">33 tokens (Sparkles)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/50/TestUser2', 'Chaturbate: 50 tokens (Rabbit Ears 🐰)')">50 tokens (Rabbit Ears 🐰)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/99/TestUser3', 'Chaturbate: 99 tokens (Big Eyes)')">99 tokens (Big Eyes)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/200/TestUser4', 'Chaturbate: 200 tokens (Cyber Mask)')">200 tokens (Cyber Mask)</a></li>
                 </ul>
                 
                 <p><strong>Stripchat:</strong></p>
                 <ul>
-                    <li><a href="/trigger/stripchat/33/StripUser1" target="_blank">33 tokens (Sparkles)</a></li>
-                    <li><a href="/trigger/stripchat/50/StripUser2" target="_blank">50 tokens (Rabbit Ears 🐰)</a></li>
-                    <li><a href="/trigger/stripchat/99/StripUser3" target="_blank">99 tokens (Big Eyes)</a></li>
-                    <li><a href="/trigger/stripchat/200/StripUser4" target="_blank">200 tokens (Cyber Mask)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/33/StripUser1', 'Stripchat: 33 tokens (Sparkles)')">33 tokens (Sparkles)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/50/StripUser2', 'Stripchat: 50 tokens (Rabbit Ears 🐰)')">50 tokens (Rabbit Ears 🐰)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/99/StripUser3', 'Stripchat: 99 tokens (Big Eyes)')">99 tokens (Big Eyes)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/200/StripUser4', 'Stripchat: 200 tokens (Cyber Mask)')">200 tokens (Cyber Mask)</a></li>
                 </ul>
                 
                 <p><strong>Camsoda:</strong></p>
                 <ul>
-                    <li><a href="/trigger/camsoda/33/CamUser1" target="_blank">33 tokens (Sparkles)</a></li>
-                    <li><a href="/trigger/camsoda/50/CamUser2" target="_blank">50 tokens (Rabbit Ears 🐰)</a></li>
-                    <li><a href="/trigger/camsoda/99/CamUser3" target="_blank">99 tokens (Big Eyes)</a></li>
-                    <li><a href="/trigger/camsoda/200/CamUser4" target="_blank">200 tokens (Cyber Mask)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/33/CamUser1', 'Camsoda: 33 tokens (Sparkles)')">33 tokens (Sparkles)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/50/CamUser2', 'Camsoda: 50 tokens (Rabbit Ears 🐰)')">50 tokens (Rabbit Ears 🐰)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/99/CamUser3', 'Camsoda: 99 tokens (Big Eyes)')">99 tokens (Big Eyes)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/200/CamUser4', 'Camsoda: 200 tokens (Cyber Mask)')">200 tokens (Cyber Mask)</a></li>
                 </ul>
             </div>
             

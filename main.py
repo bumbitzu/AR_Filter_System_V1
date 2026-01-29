@@ -37,6 +37,8 @@ class CameraFiltersAutomation:
     def __init__(self, output_mode="window", chaturbate_url=None, stripchat_url=None, camsoda_url=None, quality="1080p"):
         if quality == "4K":
             self.width, self.height, self.fps = 3840, 2160, 30
+        elif quality == "720p":
+            self.width, self.height, self.fps = 1280, 720, 60
         else:  # Default 1080p
             self.width, self.height, self.fps = 1920, 1080, 60
 
@@ -82,6 +84,35 @@ class CameraFiltersAutomation:
         
         if not self.listeners:
             print("⚠️ No platform APIs configured. Use keyboard shortcuts for testing.")
+        
+        # # Load static menu overlay (one-time initialization for performance)
+        # menu_path = os.path.join("assets", "menu_overlay.png")
+        # self.menu_image = cv2.imread(menu_path, cv2.IMREAD_UNCHANGED)  # Load with alpha channel
+        # if self.menu_image is None:
+        #     print(f"⚠️ Warning: Could not load menu overlay from '{menu_path}'. Menu will not be displayed.")
+        # else:
+        #     h, w = self.menu_image.shape[:2] # Get height and width
+        #     channels = self.menu_image.shape[2] if len(self.menu_image.shape) > 2 else 1 # Get number of channels
+        #     print(f"✅ Menu overlay loaded: {w}x{h}px, {channels} channels from '{menu_path}'")
+        #     
+        #     # Resize menu if it's too large to fit in the frame
+        #     max_menu_height = int(self.height * 0.4)  # Max 25% of frame height
+        #     max_menu_width = int(self.width * 0.20)   # Max 20% of frame width
+        #     
+        #     if h > max_menu_height or w > max_menu_width:
+        #         # Calculate scaling factor to fit within limits
+        #         scale_h = max_menu_height / h
+        #         scale_w = max_menu_width / w
+        #         scale = min(scale_h, scale_w)
+        #         
+        #         new_w = int(w * scale)
+        #         new_h = int(h * scale)
+        #         
+        #         self.menu_image = cv2.resize(self.menu_image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        #         print(f"   Resized to: {new_w}x{new_h}px to fit frame ({self.width}x{self.height})")
+        
+        # Set menu_image to None when commented out
+        self.menu_image = None
 
     def select_camera(self):
         """Finds camera names on both Windows and macOS."""
@@ -156,6 +187,95 @@ class CameraFiltersAutomation:
             })
             print(f"Added {name} to queue for {username}")
 
+    def draw_rounded_rect_with_glow(self, frame, x1, y1, x2, y2, corner_radius, bg_color, border_color, glow_thickness=8):
+        """
+        Draws a rounded rectangle with glassmorphism glow effect.
+        
+        Args:
+            frame: The frame to draw on
+            x1, y1: Top-left coordinates
+            x2, y2: Bottom-right coordinates
+            corner_radius: Radius for rounded corners
+            bg_color: Background color (B, G, R)
+            border_color: Border/glow color (B, G, R) - Neon Magenta or Cyber Cyan
+            glow_thickness: Thickness of the glow effect
+        """
+        # Create overlay for semi-transparent background
+        overlay = frame.copy()
+        
+        # Draw rounded background using circles at corners and rectangles
+        # Top-left corner
+        cv2.circle(overlay, (x1 + corner_radius, y1 + corner_radius), corner_radius, bg_color, -1, cv2.LINE_AA)
+        # Top-right corner
+        cv2.circle(overlay, (x2 - corner_radius, y1 + corner_radius), corner_radius, bg_color, -1, cv2.LINE_AA)
+        # Bottom-left corner
+        cv2.circle(overlay, (x1 + corner_radius, y2 - corner_radius), corner_radius, bg_color, -1, cv2.LINE_AA)
+        # Bottom-right corner
+        cv2.circle(overlay, (x2 - corner_radius, y2 - corner_radius), corner_radius, bg_color, -1, cv2.LINE_AA)
+        
+        # Fill rectangles
+        cv2.rectangle(overlay, (x1 + corner_radius, y1), (x2 - corner_radius, y2), bg_color, -1)
+        cv2.rectangle(overlay, (x1, y1 + corner_radius), (x2, y2 - corner_radius), bg_color, -1)
+        
+        # Blend overlay with frame for transparency
+        cv2.addWeighted(overlay, 0.3, frame, 0.7, 0, frame)
+        
+        # Draw glow border (thicker, semi-transparent)
+        glow_color = (border_color[0] // 2, border_color[1] // 2, border_color[2] // 2)
+        self._draw_rounded_border(frame, x1, y1, x2, y2, corner_radius, glow_color, glow_thickness, alpha=0.4)
+        
+        # Draw bright neon border (thin, bright)
+        self._draw_rounded_border(frame, x1, y1, x2, y2, corner_radius, border_color, 2, alpha=1.0)
+    
+    def _draw_rounded_border(self, frame, x1, y1, x2, y2, corner_radius, color, thickness, alpha=1.0):
+        """Helper to draw rounded border with specified thickness and alpha."""
+        if alpha < 1.0:
+            overlay = frame.copy()
+            self._draw_rounded_border_solid(overlay, x1, y1, x2, y2, corner_radius, color, thickness)
+            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+        else:
+            self._draw_rounded_border_solid(frame, x1, y1, x2, y2, corner_radius, color, thickness)
+    
+    def _draw_rounded_border_solid(self, frame, x1, y1, x2, y2, corner_radius, color, thickness):
+        """Draws the actual rounded border lines."""
+        # Top line
+        cv2.line(frame, (x1 + corner_radius, y1), (x2 - corner_radius, y1), color, thickness, cv2.LINE_AA)
+        # Bottom line
+        cv2.line(frame, (x1 + corner_radius, y2), (x2 - corner_radius, y2), color, thickness, cv2.LINE_AA)
+        # Left line
+        cv2.line(frame, (x1, y1 + corner_radius), (x1, y2 - corner_radius), color, thickness, cv2.LINE_AA)
+        # Right line
+        cv2.line(frame, (x2, y1 + corner_radius), (x2, y2 - corner_radius), color, thickness, cv2.LINE_AA)
+        
+        # Corner arcs
+        cv2.ellipse(frame, (x1 + corner_radius, y1 + corner_radius), (corner_radius, corner_radius), 180, 0, 90, color, thickness, cv2.LINE_AA)
+        cv2.ellipse(frame, (x2 - corner_radius, y1 + corner_radius), (corner_radius, corner_radius), 270, 0, 90, color, thickness, cv2.LINE_AA)
+        cv2.ellipse(frame, (x1 + corner_radius, y2 - corner_radius), (corner_radius, corner_radius), 90, 0, 90, color, thickness, cv2.LINE_AA)
+        cv2.ellipse(frame, (x2 - corner_radius, y2 - corner_radius), (corner_radius, corner_radius), 0, 0, 90, color, thickness, cv2.LINE_AA)
+
+    def draw_pill_background(self, frame, text, x, y, font_scale, font_thickness, bg_color):
+        """Draws a pill-shaped background for highlighted text (e.g., token amounts)."""
+        text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0]
+        padding_x, padding_y = 12, 6
+        
+        # Create overlay for pill
+        overlay = frame.copy()
+        pill_x1 = x - padding_x
+        pill_y1 = y - text_size[1] - padding_y
+        pill_x2 = x + text_size[0] + padding_x
+        pill_y2 = y + padding_y
+        
+        # Draw rounded pill
+        pill_radius = (pill_y2 - pill_y1) // 2
+        cv2.circle(overlay, (pill_x1 + pill_radius, pill_y1 + pill_radius), pill_radius, bg_color, -1, cv2.LINE_AA)
+        cv2.circle(overlay, (pill_x2 - pill_radius, pill_y1 + pill_radius), pill_radius, bg_color, -1, cv2.LINE_AA)
+        cv2.rectangle(overlay, (pill_x1 + pill_radius, pill_y1), (pill_x2 - pill_radius, pill_y2), bg_color, -1)
+        
+        # Blend pill with frame
+        cv2.addWeighted(overlay, 0.8, frame, 0.2, 0, frame)
+        
+        return x, y
+
     def update_queue(self):
         """Manages the transition between filters in the sequence."""
         now = time.time()
@@ -169,51 +289,161 @@ class CameraFiltersAutomation:
         elif self.current_filter and now > self.filter_end_time:
             self.current_filter = None  # Clear it to trigger next one
 
+    def overlay_image_alpha(self, img, overlay, pos):
+        """
+        Efficiently overlay a transparent PNG image onto the frame using alpha blending.
+        
+        Args:
+            img: Background image (frame from video)
+            overlay: Foreground image with alpha channel (BGRA format)
+            pos: Tuple (x, y) for top-left position of overlay
+        
+        Performance: Uses proper alpha blending for semi-transparent pixels.
+        """
+        if overlay is None:
+            return  # Skip if overlay image not loaded
+        
+        x, y = pos
+        h, w = overlay.shape[:2]
+        
+        # Boundary check - ensure overlay fits within frame
+        if x < 0 or y < 0 or x + w > img.shape[1] or y + h > img.shape[0]:
+            return  # Skip if overlay would go out of bounds
+        
+        # Extract the region of interest (ROI) from the background
+        roi = img[y:y+h, x:x+w]
+        
+        # Check if overlay has alpha channel
+        if len(overlay.shape) == 3 and overlay.shape[2] == 4:
+            # BGRA image with alpha channel
+            overlay_bgr = overlay[:, :, :3].astype(float)  # Color channels (BGR)
+            alpha_mask = overlay[:, :, 3].astype(float) / 255.0  # Normalize alpha to 0-1
+            
+            # Expand alpha mask to 3 channels for broadcasting
+            alpha_3ch = cv2.merge([alpha_mask, alpha_mask, alpha_mask])
+            
+            # Blend: result = overlay * alpha + background * (1 - alpha)
+            blended = (overlay_bgr * alpha_3ch + roi.astype(float) * (1.0 - alpha_3ch)).astype('uint8')
+            
+            # Place the blended result back into the original image
+            img[y:y+h, x:x+w] = blended
+        elif len(overlay.shape) == 3 and overlay.shape[2] == 3:
+            # BGR image without alpha channel - direct copy
+            img[y:y+h, x:x+w] = overlay
+        else:
+            # Grayscale or other format - skip
+            pass
+
+
     def draw_queue_box(self, frame):
+        """Draws the queue box on the right side with glassmorphism and progress bar."""
         h, w, _ = frame.shape
-        box_w, box_h = 320, 115
+        box_w, box_h = 350, 170
         x1, y1 = w - box_w - 20, h - box_h - 20
         x2, y2 = w - 20, h - 20
-
-        # 1. Semi-transparent background
-        overlay = frame.copy()
-        cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 0, 0), -1)
-        cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
-        cv2.rectangle(frame, (x1, y1), (x2, y2), (200, 200, 200), 1)
-
+        corner_radius = 20
+        
+        # Neon colors (BGR format)
+        NEON_MAGENTA = (255, 0, 255)
+        CYBER_CYAN = (255, 255, 0)
+        PURE_WHITE = (255, 255, 255)
+        DARK_BG = (20, 15, 10)
+        
+        # Enhanced blur effect for glassmorphism
+        roi = frame[y1:y2, x1:x2].copy()
+        roi_blurred = cv2.GaussianBlur(roi, (21, 21), 0)
+        frame[y1:y2, x1:x2] = roi_blurred
+        
+        # Draw rounded rectangle with glow
+        self.draw_rounded_rect_with_glow(frame, x1, y1, x2, y2, corner_radius, DARK_BG, CYBER_CYAN, glow_thickness=8)
+        
         if self.current_filter:
-            rem = int(self.filter_end_time - time.time())
-
-            # 2. Main Title (Active Filter)
-            filter_text = f"{self.current_filter['name']} - {rem}s"
-            cv2.putText(frame, filter_text, (x1 + 15, y1 + 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 51, 255), 2)
-
-            # 3. Queue Counter (Top Right of the box)
-            # Count includes everything in the queue deque
+            remaining = max(0, int(self.filter_end_time - time.time()))
+            total_duration = self.current_filter['duration']
+            elapsed = total_duration - remaining
+            progress = min(1.0, elapsed / total_duration) if total_duration > 0 else 0
+            
+            # Pulsing LIVE indicator
+            pulse = abs((time.time() * 2) % 2 - 1)  # Creates a 0->1->0 pulse
+            live_alpha = 0.5 + (pulse * 0.5)  # Varies between 0.5 and 1.0
+            live_size = int(8 + pulse * 3)  # Varies between 8 and 11
+            
+            # Draw LIVE indicator
+            live_x = x1 + 20
+            live_y = y1 + 28
+            
+            # Draw pulsing circle
+            live_overlay = frame.copy()
+            cv2.circle(live_overlay, (live_x, live_y), live_size, (0, 0, 255), -1, cv2.LINE_AA)
+            cv2.addWeighted(live_overlay, live_alpha, frame, 1 - live_alpha, 0, frame)
+            
+            # LIVE text
+            cv2.putText(frame, "LIVE", (live_x + 15, live_y + 6), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2, cv2.LINE_AA)
+            
+            # Filter name
+            filter_text = self.current_filter['name']
+            cv2.putText(frame, filter_text, (live_x + 70, live_y + 6),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, PURE_WHITE, 2, cv2.LINE_AA)
+            
+            # Progress bar
+            bar_x1 = x1 + 20
+            bar_y = y1 + 50
+            bar_w = box_w - 40
+            bar_h = 12
+            bar_corner = 6
+            
+            # Background bar (empty)
+            bg_overlay = frame.copy()
+            cv2.rectangle(bg_overlay, (bar_x1, bar_y), (bar_x1 + bar_w, bar_y + bar_h), (60, 60, 60), -1)
+            cv2.addWeighted(bg_overlay, 0.5, frame, 0.5, 0, frame)
+            
+            # Progress fill (colored)
+            fill_w = int(bar_w * (1 - progress))  # Shrinks as time elapses
+            if fill_w > 0:
+                # Gradient from cyan to magenta
+                progress_overlay = frame.copy()
+                
+                # Create gradient effect
+                for i in range(fill_w):
+                    ratio = i / fill_w if fill_w > 0 else 0
+                    # Interpolate between CYBER_CYAN and NEON_MAGENTA
+                    color = tuple(int(CYBER_CYAN[j] * (1 - ratio) + NEON_MAGENTA[j] * ratio) for j in range(3))
+                    cv2.line(progress_overlay, (bar_x1 + i, bar_y), (bar_x1 + i, bar_y + bar_h), color, 1)
+                
+                cv2.addWeighted(progress_overlay, 0.9, frame, 0.1, 0, frame)
+            
+            # Time remaining text
+            time_text = f"{remaining}s"
+            cv2.putText(frame, time_text, (bar_x1 + bar_w - 35, bar_y + bar_h + 20), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, PURE_WHITE, 2, cv2.LINE_AA)
+            
+            # Queue counter
             queue_count = len(self.queue)
-            count_text = f"({queue_count} in queue)"
-            cv2.putText(frame, count_text, (x1 + 175, y1 + 28),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (150, 150, 150), 1)
-
-            # 4. Separator Line
-            cv2.line(frame, (x1 + 15, y1 + 45), (x2 - 15, y1 + 45), (80, 80, 80), 1)
-
-            # 5. Up Next List
-            y_offset = y1 + 65
-            cv2.putText(frame, "UP NEXT:", (x1 + 15, y_offset),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (150, 150, 150), 1)
-
-            # Display only the next 2, but the counter above shows the total
-            for i, item in enumerate(list(self.queue)[:2]):
-                y_offset += 18
-                user_display = (item['user'][:10] + '..') if len(item['user']) > 10 else item['user']
-                queue_text = f"{i + 1}. {user_display} ({item['name']})"
-                cv2.putText(frame, queue_text, (x1 + 15, y_offset),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (220, 220, 220), 1)
+            count_text = f"{queue_count} in queue"
+            cv2.putText(frame, count_text, (bar_x1, bar_y + bar_h + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+            
+            # Separator line
+            sep_y = bar_y + bar_h + 30
+            cv2.line(frame, (x1 + 20, sep_y), (x2 - 20, sep_y), (100, 100, 100), 1, cv2.LINE_AA)
+            
+            # Up Next list
+            next_y = sep_y + 20
+            cv2.putText(frame, "UP NEXT:", (x1 + 20, next_y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, CYBER_CYAN, 1, cv2.LINE_AA)
+            
+            # Display next 2 items
+            for i, item in enumerate(list(self.queue)[:3]):
+                next_y += 15
+                queue_text = f"{item['name']}"
+                cv2.putText(frame, queue_text, (x1 + 25, next_y),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (220, 220, 220), 1, cv2.LINE_AA)
         else:
-            cv2.putText(frame, "Waiting for tips...", (x1 + 15, y1 + 65),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (120, 120, 120), 1)
+            # No active filter - waiting state
+            waiting_y = y1 + 65
+            cv2.putText(frame, "Waiting for tips...", (x1 + 20, waiting_y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (150, 150, 150), 2, cv2.LINE_AA)
 
 
 
@@ -222,11 +452,37 @@ class CameraFiltersAutomation:
         cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
         print("--- APP RUNNING ---")
+        
+        first_frame = True  # Flag to resize menu on first frame
 
         while self.cap.isOpened():
             ret, frame = self.cap.read()
             if not ret: break
             frame = cv2.flip(frame, 1)
+            
+            # On first frame, ensure menu fits actual frame dimensions
+            if first_frame and self.menu_image is not None:
+                actual_h, actual_w = frame.shape[:2]
+                menu_h, menu_w = self.menu_image.shape[:2]
+                
+                # Check if menu needs resizing for actual frame
+                max_menu_h = int(actual_h * 0.8)  # Max 80% of actual height
+                max_menu_w = int(actual_w * 0.35)  # Max 35% of actual width
+                
+                if menu_h > max_menu_h or menu_w > max_menu_w:
+                    scale_h = max_menu_h / menu_h
+                    scale_w = max_menu_w / menu_w
+                    scale = min(scale_h, scale_w)
+                    
+                    new_w = int(menu_w * scale)
+                    new_h = int(menu_h * scale)
+                    
+                    self.menu_image = cv2.resize(self.menu_image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                
+                first_frame = False
+            
+            # Apply static menu overlay at top-left position (20, 20)
+            self.overlay_image_alpha(frame, self.menu_image, (20, 20))
 
             self.update_queue()
 
@@ -240,11 +496,13 @@ class CameraFiltersAutomation:
             if key == ord('q'):
                 break
             elif key == ord('1'):
-                self.process_tip(35)  # Test Tier 1
+                self.process_tip(33)   # Sparkles - 33 tokens
             elif key == ord('2'):
-                self.process_tip(105)  # Test Tier 2
+                self.process_tip(50)   # Rabbit Ears - 50 tokens
             elif key == ord('3'):
-                self.process_tip(500)  # Test Tier 3
+                self.process_tip(99)   # Big Eyes - 99 tokens
+            elif key == ord('4'):
+                self.process_tip(200)  # Cyber Mask - 200 tokens
 
             self.output.display(frame)
 
