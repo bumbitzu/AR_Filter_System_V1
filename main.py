@@ -25,7 +25,16 @@ from filters.FaceMask3DFilter import FaceMask3D
 from filters.BigEyeFilter import BigEyeFilter
 from filters.RainSparkleFilter import RainSparkleFilter
 from filters.RabbitEarsFilter import RabbitEarsFilter
+from filters.AlienFaceFilter import AlienFaceFilter
+from filters.SquirrelCheeksFilter import SquirrelCheeksFilter
+from filters.BigMouthFilter import BigMouthFilter
+from filters.PinocchioFilter import PinocchioFilter
+from filters.SharpChinFilter import SharpChinFilter
 from collections import deque
+
+
+
+
 
 try:
     os.dup2(old_stderr_fd, sys.stderr.fileno())
@@ -34,13 +43,17 @@ except Exception:
     pass
 
 class CameraFiltersAutomation:
-    def __init__(self, output_mode="window", chaturbate_url=None, stripchat_url=None, camsoda_url=None, quality="1080p"):
+    def __init__(self, output_mode="window", chaturbate_url=None, stripchat_url=None, camsoda_url=None, quality="2K"):
         if quality == "4K":
             self.width, self.height, self.fps = 3840, 2160, 30
+        elif quality == "2K":
+            self.width, self.height, self.fps = 2560, 1440, 60
+        elif quality == "1080p":
+            self.width, self.height, self.fps = 1920, 1080, 60
         elif quality == "720p":
             self.width, self.height, self.fps = 1280, 720, 60
-        else:  # Default 1080p
-            self.width, self.height, self.fps = 1920, 1080, 60
+        else:  # Default 2K
+            self.width, self.height, self.fps = 2560, 1440, 60
 
         selected_index = self.select_camera()
         self.cap = cv2.VideoCapture(selected_index, cv2.CAP_DSHOW)
@@ -55,11 +68,20 @@ class CameraFiltersAutomation:
 
         # Define Tiers: (Min_Tokens, Max_Tokens, Filter_Key, Duration)
         self.fixed_tips = {
+            27:  ('Alien Face', AlienFaceFilter(), 12),
+            32:  ('Squirrel Cheeks', SquirrelCheeksFilter(), 13),
+            37:  ('Big Mouth', BigMouthFilter(), 14),
+            43:  ('Pinocchio', PinocchioFilter(), 30),
+            46:  ('Sharp Chin', SharpChinFilter(), 20),
             33:  ('Sparkles', RainSparkleFilter(), 10),
             50:  ('Rabbit Ears', RabbitEarsFilter(), 15),
             99:  ('Big Eyes', BigEyeFilter(), 20),
             200: ('Cyber Mask', FaceMask3D(), 30)
         }
+
+
+
+
 
         # Initialize platform listeners
         self.listeners = []
@@ -495,6 +517,14 @@ class CameraFiltersAutomation:
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 break
+            elif key == ord('a'):
+                self.process_tip(27)   # Alien Face - 27 tokens
+            elif key == ord('s'):
+                self.process_tip(32)   # Squirrel Cheeks - 32 tokens
+            elif key == ord('b'):
+                self.process_tip(37)   # Big Mouth - 37 tokens
+            elif key == ord('p'):
+                self.process_tip(43)   # Pinocchio - 43 tokens
             elif key == ord('1'):
                 self.process_tip(33)   # Sparkles - 33 tokens
             elif key == ord('2'):
@@ -503,6 +533,12 @@ class CameraFiltersAutomation:
                 self.process_tip(99)   # Big Eyes - 99 tokens
             elif key == ord('4'):
                 self.process_tip(200)  # Cyber Mask - 200 tokens
+            elif key == ord('5'):
+                self.process_tip(46)   # Sharp Chin - 46 tokens
+
+
+
+
 
             self.output.display(frame)
 
