@@ -105,7 +105,7 @@ class GiantForeheadFilter:
         v_progress = local_y / face_size
         
         # Keep the high start point (0.55) to protect eyebrows
-        weight_dir = np.clip((v_progress - 0.55) / 0.5, 0.0, 1.0)
+        weight_dir = np.clip((v_progress - 0.70) / 0.5, 0.0, 1.0)
         weight_dir = weight_dir * weight_dir * (3 - 2 * weight_dir)
         
         final_weight = weight_radial * weight_dir
@@ -115,8 +115,8 @@ class GiantForeheadFilter:
         if np.any(mask):
             # 4. Calculate Displacement in Local Space
             # STRONGER PARAMETERS
-            sx = self.strength * 1.1  # Was 0.85 -> Wider
-            sy = self.strength * 2.5  # Was 1.8 -> Much Taller
+            sx = self.strength * 0.5  # REDUCED from 1.1 to 0.1 for narrower forehead
+            sy = self.strength * 2.5  # Kept high for vertical height
             
             pull_local_x = -local_x[mask] * final_weight[mask] * sx
             pull_local_y = -local_y[mask] * final_weight[mask] * sy

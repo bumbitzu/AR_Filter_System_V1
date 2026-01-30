@@ -635,5 +635,15 @@ if __name__ == "__main__":
         output_mode=config['output_mode'],
         quality=config['quality']
     )
-    app.run()
+    
+    try:
+        app.run()
+    except KeyboardInterrupt:
+        print("\n🛑 Application stopped by user.")
+    finally:
+        # Force cleanup on exit
+        if app.cap.isOpened():
+            app.cap.release()
+        app.output.stop()
+        cv2.destroyAllWindows()
 
