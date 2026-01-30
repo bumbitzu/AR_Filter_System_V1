@@ -17,12 +17,19 @@ pending_tips = {
 def trigger_chaturbate(amount, user):
     """Simulează un tip de pe Chaturbate"""
     pending_tips['chaturbate'].append({
-        "method": "tip",
-        "object": {
-            "amount": amount,
-            "user": {
-                "username": user
-            }
+        "broadcaster": "test_broadcaster",
+        "tip": {
+            "tokens": amount,
+            "isAnon": False,
+            "message": "Test tip from mock server"
+        },
+        "user": {
+            "username": user,
+            "inFanclub": False,
+            "gender": "m",
+            "hasTokens": True,
+            "recentTips": "none",
+            "isMod": False
         }
     })
     return f"✅ Chaturbate tip: {amount} tokens from {user}!"
@@ -269,56 +276,75 @@ def home():
             
             <h2>🎯 Filtre Disponibile</h2>
             <ul>
-                <li><strong>27 tokens</strong> → Alien Face 👽 (12s)</li>
-                <li><strong>32 tokens</strong> → Squirrel Cheeks 🐿️ (13s)</li>
-                <li><strong>37 tokens</strong> → Big Mouth 👄 (14s)</li>
-                <li><strong>43 tokens</strong> → Pinocchio 🤥 (30s)</li>
-                <li><strong>46 tokens</strong> → Sharp Chin 🔪 (20s)</li>
-                <li><strong>33 tokens</strong> → Sparkles (10s)</li>
-                <li><strong>50 tokens</strong> → Rabbit Ears 🐰 (15s)</li>
-                <li><strong>99 tokens</strong> → Big Eyes (20s)</li>
-                <li><strong>200 tokens</strong> → Cyber Mask (30s)</li>
+                <li><strong>120 tokens</strong> → Squirrel Cheeks 🐿️ (10s)</li>
+                <li><strong>130 tokens</strong> → Alien Face 👽 (10s)</li>
+                <li><strong>140 tokens</strong> → Big Mouth 👄 (10s)</li>
+                <li><strong>150 tokens</strong> → Pinocchio 🤥 (10s)</li>
+                <li><strong>160 tokens</strong> → Sharp Chin 🔪 (10s)</li>
+                <li><strong>170 tokens</strong> → Giant Forehead 🧠 (10s)</li>
+                <li><strong>180 tokens</strong> → Cube Head 🧊 (10s)</li>
+                <li><strong>190 tokens</strong> → Melted Face 🫠 (10s)</li>
+                <li><strong>200 tokens</strong> → Snail eyes 🐌 (10s)</li>
+                <li><strong>210 tokens</strong> → Permanent Smile 😬 (10s)</li>
+                <li><strong>220 tokens</strong> → Big Eyes (10s)</li>
+                <li><strong>230 tokens</strong> → Rabbit Ears 🐰 (10s)</li>
+                <li><strong>240 tokens</strong> → Cyber Mask (10s)</li>
             </ul>
             
             <div class="test-links">
                 <h3>🧪 Link-uri de Testare Rapidă</h3>
                 <p><strong>Chaturbate:</strong></p>
                 <ul>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/27/TestUser1', 'Chaturbate: 27 tokens (Alien Face 👽)')">27 tokens (Alien Face 👽)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/32/TestUser2', 'Chaturbate: 32 tokens (Squirrel Cheeks 🐿️)')">32 tokens (Squirrel Cheeks 🐿️)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/37/TestUser3', 'Chaturbate: 37 tokens (Big Mouth 👄)')">37 tokens (Big Mouth 👄)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/43/TestUser4', 'Chaturbate: 43 tokens (Pinocchio 🤥)')">43 tokens (Pinocchio 🤥)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/46/TestUser9', 'Chaturbate: 46 tokens (Sharp Chin 🔪)')">46 tokens (Sharp Chin 🔪)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/33/TestUser5', 'Chaturbate: 33 tokens (Sparkles)')">33 tokens (Sparkles)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/50/TestUser6', 'Chaturbate: 50 tokens (Rabbit Ears 🐰)')">50 tokens (Rabbit Ears 🐰)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/99/TestUser7', 'Chaturbate: 99 tokens (Big Eyes)')">99 tokens (Big Eyes)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/200/TestUser8', 'Chaturbate: 200 tokens (Cyber Mask)')">200 tokens (Cyber Mask)</a></li>
+                    
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/120/TestUser2', 'Chaturbate: 120 tokens (Squirrel Cheeks 🐿️)')">120 tokens (Squirrel Cheeks 🐿️)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/130/TestUser1', 'Chaturbate: 130 tokens (Alien Face 👽)')">130 tokens (Alien Face 👽)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/140/TestUser3', 'Chaturbate: 140 tokens (Big Mouth 👄)')">140 tokens (Big Mouth 👄)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/150/TestUser4', 'Chaturbate: 150 tokens (Pinocchio 🤥)')">150 tokens (Pinocchio 🤥)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/160/TestUser9', 'Chaturbate: 160 tokens (Sharp Chin 🔪)')">160 tokens (Sharp Chin 🔪)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/170/TestUser10', 'Chaturbate: 200 tokens (Giant Forehead 🧠)')">170 tokens (Giant Forehead 🧠)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/180/TestUser11', 'Chaturbate: 210 tokens (Cube Head 🧊)')">180 tokens (Cube Head 🧊)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/190/TestUser12', 'Chaturbate: 230 tokens (Melted Face 🫠)')">190 tokens (Melted Face 🫠)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/200/TestUser13', 'Chaturbate: 240 tokens (Snail Eyes 🐌)')">200 tokens (Snail Eyes 🐌)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/210/TestUser14', 'Chaturbate: 250 tokens (Permanent Smile 😬)')">210 tokens (Permanent Smile 😬)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/220/TestUser15', 'Chaturbate: 260 tokens (Big Eyes)')">220 tokens (Big Eyes)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/230/TestUser16', 'Chaturbate: 270 tokens (Rabbit Ears 🐰)')">230 tokens (Rabbit Ears 🐰)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/240/TestUser17', 'Chaturbate: 280 tokens (Cyber Mask)')">240 tokens (Cyber Mask)</a></li>
                 </ul>
                 
                 <p><strong>Stripchat:</strong></p>
                 <ul>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/27/StripUser1', 'Stripchat: 27 tokens (Alien Face 👽)')">27 tokens (Alien Face 👽)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/32/StripUser2', 'Stripchat: 32 tokens (Squirrel Cheeks 🐿️)')">32 tokens (Squirrel Cheeks 🐿️)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/37/StripUser3', 'Stripchat: 37 tokens (Big Mouth 👄)')">37 tokens (Big Mouth 👄)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/43/StripUser4', 'Stripchat: 43 tokens (Pinocchio 🤥)')">43 tokens (Pinocchio 🤥)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/46/StripUser9', 'Stripchat: 46 tokens (Sharp Chin 🔪)')">46 tokens (Sharp Chin 🔪)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/33/StripUser5', 'Stripchat: 33 tokens (Sparkles)')">33 tokens (Sparkles)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/50/StripUser6', 'Stripchat: 50 tokens (Rabbit Ears 🐰)')">50 tokens (Rabbit Ears 🐰)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/99/StripUser7', 'Stripchat: 99 tokens (Big Eyes)')">99 tokens (Big Eyes)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/200/StripUser8', 'Stripchat: 200 tokens (Cyber Mask)')">200 tokens (Cyber Mask)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/120/StripUser2', 'Stripchat: 120 tokens (Squirrel Cheeks 🐿️)')">120 tokens (Squirrel Cheeks 🐿️)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/130/StripUser1', 'Stripchat: 130 tokens (Alien Face 👽)')">130 tokens (Alien Face 👽)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/140/StripUser3', 'Stripchat: 140 tokens (Big Mouth 👄)')">140 tokens (Big Mouth 👄)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/150/StripUser4', 'Stripchat: 150 tokens (Pinocchio 🤥)')">150 tokens (Pinocchio 🤥)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/160/StripUser9', 'Stripchat: 160 tokens (Sharp Chin 🔪)')">160 tokens (Sharp Chin 🔪)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/170/StripUser10', 'Stripchat: 170 tokens (Giant Forehead 🧠)')">170 tokens (Giant Forehead 🧠)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/180/StripUser11', 'Stripchat: 180 tokens (Cube Head 🧊)')">180 tokens (Cube Head 🧊)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/190/StripUser12', 'Stripchat: 190 tokens (Melted Face 🫠)')">190 tokens (Melted Face 🫠)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/200/StripUser13', 'Stripchat: 200 tokens (Snail Eyes 🐌)')">200 tokens (Snail Eyes 🐌)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/210/StripUser14', 'Stripchat: 210 tokens (Permanent Smile 😬)')">210 tokens (Permanent Smile 😬)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/220/StripUser15', 'Stripchat: 220 tokens (Big Eyes)')">220 tokens (Big Eyes)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/230 /StripUser16', 'Stripchat: 230 tokens (Rabbit Ears 🐰)')">230 tokens (Rabbit Ears 🐰)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/240/StripUser17', 'Stripchat: 240 tokens (Cyber Mask)')">240 tokens (Cyber Mask)</a></li>
+                    
+                    
                 </ul>
                 
                 <p><strong>Camsoda:</strong></p>
                 <ul>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/27/CamUser1', 'Camsoda: 27 tokens (Alien Face 👽)')">27 tokens (Alien Face 👽)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/32/CamUser2', 'Camsoda: 32 tokens (Squirrel Cheeks 🐿️)')">32 tokens (Squirrel Cheeks 🐿️)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/37/CamUser3', 'Camsoda: 37 tokens (Big Mouth 👄)')">37 tokens (Big Mouth 👄)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/43/CamUser4', 'Camsoda: 43 tokens (Pinocchio 🤥)')">43 tokens (Pinocchio 🤥)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/46/CamUser9', 'Camsoda: 46 tokens (Sharp Chin 🔪)')">46 tokens (Sharp Chin 🔪)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/33/CamUser5', 'Camsoda: 33 tokens (Sparkles)')">33 tokens (Sparkles)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/50/CamUser6', 'Camsoda: 50 tokens (Rabbit Ears 🐰)')">50 tokens (Rabbit Ears 🐰)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/99/CamUser7', 'Camsoda: 99 tokens (Big Eyes)')">99 tokens (Big Eyes)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/200/CamUser8', 'Camsoda: 200 tokens (Cyber Mask)')">200 tokens (Cyber Mask)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/120/CamUser2', 'Camsoda: 120 tokens (Squirrel Cheeks 🐿️)')">120 tokens (Squirrel Cheeks 🐿️)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/130/CamUser1', 'Camsoda: 130 tokens (Alien Face 👽)')">130 tokens (Alien Face 👽)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/140/CamUser3', 'Camsoda: 140 tokens (Big Mouth 👄)')">140 tokens (Big Mouth 👄)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/150/CamUser4', 'Camsoda: 150 tokens (Pinocchio 🤥)')">150 tokens (Pinocchio 🤥)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/160/CamUser9', 'Camsoda: 160 tokens (Sharp Chin 🔪)')">160 tokens (Sharp Chin 🔪)</a></li>    
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/170/CamUser10', 'Camsoda: 170 tokens (Giant Forehead 🧠)')">170 tokens (Giant Forehead 🧠)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/180/CamUser11', 'Camsoda: 180 tokens (Cube Head 🧊)')">180 tokens (Cube Head 🧊)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/190/CamUser12', 'Camsoda: 190 tokens (Melted Face 🫠)')">190 tokens (Melted Face 🫠)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/200/CamUser13', 'Camsoda: 200 tokens (Snail Eyes 🐌)')">200 tokens (Snail Eyes 🐌)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/210/CamUser14', 'Camsoda: 210 tokens (Permanent Smile 😬)')">210 tokens (Permanent Smile 😬)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/220/CamUser15', 'Camsoda: 220 tokens (Big Eyes)')">220 tokens (Big Eyes)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/230 /CamUser16', 'Camsoda: 230 tokens (Rabbit Ears 🐰)')">230 tokens (Rabbit Ears 🐰)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/240/CamUser17', 'Camsoda: 240 tokens (Cyber Mask)')">240 tokens (Cyber Mask)</a></li>
                 </ul>
             </div>
             

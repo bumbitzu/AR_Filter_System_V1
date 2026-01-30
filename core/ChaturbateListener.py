@@ -45,13 +45,16 @@ class ChaturbateListener:
 
                 # Procesare events
                 for event in data.get('events', []):
-                    if event.get('method') == 'tip':
-                        # Normalizare date Chaturbate
+                    # Format 1: User Provided / Official ("tip": {"tokens": 25})
+                    if 'tip' in event:
+                        amount = event.get('tip', {}).get('tokens', 0)
+                        # User explicitly requested NOT to extract username
+                        self.process_tip(amount, "Viewer")
+                    
+                    # Format 2: Old / Legacy ("method": "tip", "object": {"amount": 25})
+                    elif event.get('method') == 'tip':
                         amount = event.get('object', {}).get('amount', 0)
-                        username = event.get('object', {}).get('user', {}).get('username', 'Anonymous')
-                        
-                        # Trimite către metoda centrală
-                        self.process_tip(amount, username)
+                        self.process_tip(amount, "Viewer")
                 
                 # Reset retry delay dacă conexiunea a avut succes
                 retry_delay = 5

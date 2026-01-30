@@ -5,204 +5,187 @@ import numpy as np
 
 class SquirrelCheeksFilter:
     """
-    AR filter that creates massively puffed out cheeks like a squirrel storing nuts.
-    
-    Features:
-    - Massive outward spherical distortion on both cheeks
-    - Smooth blending with surrounding facial features
-    - Maintains mouth and nose stability
-    
-    Performance: Optimized using cv2.remap for real-time 60 FPS processing
+    Squirrel Cheeks (optimized)
+    - No full-frame meshgrid/remap
+    - Warps ONLY small ROIs around each cheek
+    - Smooth falloff, clean borders
+    - Optional temporal smoothing (anti-jitter)
     """
-    
+
     def __init__(self):
-        """Initialize MediaPipe Face Mesh and filter parameters."""
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
+        self.face_mesh = mp.solutions.face_mesh.FaceMesh(
+            static_image_mode=False,
+            max_num_faces=1,
             refine_landmarks=True,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
-        
-        # Key landmark indices for facial features
-        # Mouth corners
-        self.left_mouth_corner = 61   # Left corner of mouth
-        self.right_mouth_corner = 291  # Right corner of mouth
-        
-        # Cheekbone references
-        self.left_cheekbone = 127   # Left cheekbone
-        self.right_cheekbone = 356  # Right cheekbone
-        
-        # Jaw references for cheek positioning
-        self.left_jaw_mid = 172     # Left mid-jaw
-        self.right_jaw_mid = 397    # Right mid-jaw
-        
-        # Nose reference (to keep stable)
-        self.nose_tip = 1           # Nose tip
-        
-        # Chin reference
-        self.chin = 152             # Chin point
-        
-        # Filter strength parameters
-        self.cheek_puff_strength = 0.65   # How much to puff out (0.5-0.8)
-        self.cheek_radius_scale = 1.3     # Size of affected area
-        
-    def _get_cheek_centers(self, landmarks, w, h):
-        """
-        Calculate the center points for left and right cheek puffing.
-        
-        Args:
-            landmarks: Face landmarks from MediaPipe
-            w, h: Frame dimensions
-            
-        Returns:
-            tuple: ((left_cx, left_cy, radius), (right_cx, right_cy, radius))
-        """
-        # Get key landmark positions
-        left_mouth = landmarks.landmark[self.left_mouth_corner]
-        right_mouth = landmarks.landmark[self.right_mouth_corner]
-        left_cheekbone = landmarks.landmark[self.left_cheekbone]
-        right_cheekbone = landmarks.landmark[self.right_cheekbone]
-        left_jaw = landmarks.landmark[self.left_jaw_mid]
-        right_jaw = landmarks.landmark[self.right_jaw_mid]
-        
-        # Calculate left cheek center (between mouth corner and jaw)
-        left_cx = int((left_mouth.x * 0.3 + left_jaw.x * 0.5 + left_cheekbone.x * 0.2) * w)
-        left_cy = int((left_mouth.y * 0.35 + left_jaw.y * 0.35 + left_cheekbone.y * 0.3) * h)
-        
-        # Calculate right cheek center (between mouth corner and jaw)
-        right_cx = int((right_mouth.x * 0.3 + right_jaw.x * 0.5 + right_cheekbone.x * 0.2) * w)
-        right_cy = int((right_mouth.y * 0.35 + right_jaw.y * 0.35 + right_cheekbone.y * 0.3) * h)
-        
-        # Calculate radius based on face size
-        face_width = abs(right_jaw.x - left_jaw.x) * w
-        radius = int(face_width * 0.35 * self.cheek_radius_scale)
-        
-        return (left_cx, left_cy, radius), (right_cx, right_cy, radius)
-    
-    def _create_cheek_warp(self, frame, landmarks):
-        """
-        Create mesh deformation maps for squirrel cheek puffing.
-        
-        Applies radial outward displacement to create spherical cheek bulges.
-        
-        Args:
-            frame: Input video frame
-            landmarks: Face landmarks from MediaPipe
-            
-        Returns:
-            tuple: (map_x, map_y) for cv2.remap
-        """
+
+        # Landmarks (MediaPipe FaceMesh)
+        self.left_mouth_corner = 61
+        self.right_mouth_corner = 291
+        self.left_cheekbone = 127
+        self.right_cheekbone = 356
+        self.left_jaw_mid = 172
+        self.right_jaw_mid = 397
+        self.nose_tip = 1
+
+        # Effect tuning
+        self.strength = 1.10          # overall intensity (0.7..1.6)
+        self.radius_scale = 1.20      # cheek ROI size (0.9..1.6)
+        self.x_boost = 1.35           # bulge more sideways
+        self.y_boost = 1.10           # bulge less vertical
+
+        # Smoothing (anti-jitter)
+        self.smooth = True
+        self.smooth_alpha = 0.65      # higher = smoother, more laggy (0.4..0.8)
+        self._prev_left = None        # (cx, cy, rx, ry)
+        self._prev_right = None
+
+    @staticmethod
+    def _smoothstep(x):
+        return x * x * (3.0 - 2.0 * x)
+
+    def _get_pts(self, frame):
         h, w = frame.shape[:2]
-        
-        # Initialize identity mapping (no distortion)
-        map_x, map_y = np.meshgrid(np.arange(w, dtype=np.float32), 
-                                     np.arange(h, dtype=np.float32))
-        
-        # Get cheek centers and radii
-        (left_cx, left_cy, left_radius), (right_cx, right_cy, right_radius) = \
-            self._get_cheek_centers(landmarks, w, h)
-        
-        # Apply puffing to left cheek
-        self._apply_radial_puff(map_x, map_y, left_cx, left_cy, left_radius, w, h)
-        
-        # Apply puffing to right cheek
-        self._apply_radial_puff(map_x, map_y, right_cx, right_cy, right_radius, w, h)
-        
-        return map_x, map_y
-    
-    def _apply_radial_puff(self, map_x, map_y, cx, cy, radius, w, h):
-        """
-        Apply radial outward displacement to create a puffed/bulged effect.
-        
-        Uses a smooth falloff function to avoid harsh edges.
-        
-        Args:
-            map_x, map_y: Mesh grid maps to modify
-            cx, cy: Center of the puff effect
-            radius: Radius of effect
-            w, h: Frame dimensions
-        """
-        # Create coordinate grids relative to cheek center
-        y_grid, x_grid = np.ogrid[:h, :w]
-        
-        # Calculate distance from cheek center for all pixels
-        dx = x_grid - cx
-        dy = y_grid - cy
-        distance = np.sqrt(dx**2 + dy**2)
-        
-        # Create smooth falloff mask (only affect pixels within radius)
-        # Use smooth exponential falloff for natural blending
-        mask = distance < radius
-        
-        # Calculate displacement strength based on distance
-        # Stronger effect at center, smoothly fading to zero at radius
-        normalized_dist = np.clip(distance / radius, 0, 1)
-        
-        # Use smooth falloff function (ease-out curve)
-        # This creates a natural bulge effect
-        falloff = np.where(
-            mask,
-            (1.0 - normalized_dist**2) ** 2,  # Smooth quadratic falloff
-            0.0
+        res = self.face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        if not res.multi_face_landmarks:
+            return None
+
+        lm = res.multi_face_landmarks[0].landmark
+        pts = np.array([(int(p.x * w), int(p.y * h)) for p in lm], dtype=np.int32)
+        return pts
+
+    def _cheek_params(self, pts):
+        # key points
+        lmL = pts[self.left_mouth_corner]
+        lmR = pts[self.right_mouth_corner]
+        cbL = pts[self.left_cheekbone]
+        cbR = pts[self.right_cheekbone]
+        jwL = pts[self.left_jaw_mid]
+        jwR = pts[self.right_jaw_mid]
+        nose = pts[self.nose_tip]
+
+        # centers (weighted blend: mouth/jaw/cheekbone + stabilize with nose)
+        left_c = (lmL * 0.35 + jwL * 0.45 + cbL * 0.20).astype(np.float32)
+        right_c = (lmR * 0.35 + jwR * 0.45 + cbR * 0.20).astype(np.float32)
+
+        # slight pull towards nose so it doesn't drift outward too much
+        left_c = (left_c * 0.92 + nose * 0.08).astype(np.float32)
+        right_c = (right_c * 0.92 + nose * 0.08).astype(np.float32)
+
+        # radius from face width
+        face_w = np.linalg.norm(jwR - jwL)
+        base = face_w * 0.22 * self.radius_scale
+
+        # ellipse radii (more wide than tall for cheeks)
+        rx = max(18.0, base * 1.25)
+        ry = max(18.0, base * 1.00)
+
+        return left_c, right_c, rx, ry
+
+    def _ema(self, prev, curr):
+        # prev/curr: (cx,cy,rx,ry) float
+        a = self.smooth_alpha
+        return (
+            prev[0] * a + curr[0] * (1 - a),
+            prev[1] * a + curr[1] * (1 - a),
+            prev[2] * a + curr[2] * (1 - a),
+            prev[3] * a + curr[3] * (1 - a),
         )
-        
-        # Calculate radial displacement (outward from center)
-        # Strength increases towards the edge for a spherical bulge
-        displacement_strength = falloff * self.cheek_puff_strength * radius
-        
-        # Apply outward radial displacement
-        # Pixels are pulled away from the center
-        with np.errstate(divide='ignore', invalid='ignore'):
-            # Normalize direction vectors
-            norm_dx = np.where(distance > 0, dx / distance, 0)
-            norm_dy = np.where(distance > 0, dy / distance, 0)
-            
-            # Calculate displacement vectors
-            disp_x = norm_dx * displacement_strength
-            disp_y = norm_dy * displacement_strength
-            
-            # Apply displacement (subtract because we want to sample from closer to center)
-            # This creates the puffing effect
-            map_x[mask] -= disp_x[mask]
-            map_y[mask] -= disp_y[mask]
-            
-            # Clamp to valid range
-            map_x[:] = np.clip(map_x, 0, w - 1)
-            map_y[:] = np.clip(map_y, 0, h - 1)
-    
-    def apply(self, frame):
+
+    def _bulge_roi(self, frame, center, rx, ry):
         """
-        Apply the Squirrel Cheeks filter to a video frame.
-        
-        Args:
-            frame: Input BGR video frame
-            
-        Returns:
-            np.array: Transformed frame with puffed cheeks
+        Bulge inside an ellipse ROI using inverse mapping (correct for cv2.remap).
         """
         h, w = frame.shape[:2]
-        
-        # Convert to RGB for MediaPipe
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-        # Detect face landmarks
-        results = self.face_mesh.process(rgb_frame)
-        
-        # Return original frame if no face detected
-        if not results.multi_face_landmarks:
+        cx, cy = float(center[0]), float(center[1])
+
+        # ROI bounds (a bit larger than ellipse, to keep edges clean)
+        roi_mul = 1.35
+        rx_roi = int(rx * roi_mul)
+        ry_roi = int(ry * roi_mul)
+
+        x0 = max(int(cx) - rx_roi, 0)
+        y0 = max(int(cy) - ry_roi, 0)
+        x1 = min(int(cx) + rx_roi, w)
+        y1 = min(int(cy) + ry_roi, h)
+
+        roi = frame[y0:y1, x0:x1]
+        if roi.size == 0:
             return frame
-        
-        # Process first detected face
-        face_landmarks = results.multi_face_landmarks[0]
-        
-        # Create mesh warp for cheek puffing
-        map_x, map_y = self._create_cheek_warp(frame, face_landmarks)
-        
-        # Apply remap for high-performance warping
-        # Use INTER_LINEAR for good quality with excellent performance
-        puffed_frame = cv2.remap(frame, map_x, map_y, 
-                                 cv2.INTER_LINEAR, 
-                                 borderMode=cv2.BORDER_REPLICATE)
-        
-        return puffed_frame
+
+        hh, ww = roi.shape[:2]
+        yy, xx = np.mgrid[0:hh, 0:ww]
+
+        X = xx.astype(np.float32) + x0
+        Y = yy.astype(np.float32) + y0
+
+        # normalized ellipse coords
+        dx = (X - cx) / max(rx, 1.0)
+        dy = (Y - cy) / max(ry, 1.0)
+        dist = dx * dx + dy * dy
+
+        mask = dist < 1.0
+        if not np.any(mask):
+            return frame
+
+        # smooth falloff (strong center, zero at edge)
+        fall = np.clip(1.0 - dist, 0.0, 1.0)
+        fall = self._smoothstep(fall) * self.strength
+
+        # anisotropic bulge
+        scale_x = 1.0 + fall * self.x_boost
+        scale_y = 1.0 + fall * self.y_boost
+
+        # IMPORTANT: inverse mapping for remap (sample closer to center => bulge)
+        src_X = cx + (X - cx) / scale_x
+        src_Y = cy + (Y - cy) / scale_y
+
+        map_x = np.clip(src_X - x0, 0, ww - 1).astype(np.float32)
+        map_y = np.clip(src_Y - y0, 0, hh - 1).astype(np.float32)
+
+        warped = cv2.remap(
+            roi,
+            map_x,
+            map_y,
+            interpolation=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_REFLECT_101
+        )
+
+        out = frame.copy()
+        out_roi = out[y0:y1, x0:x1]
+        out_roi[mask] = warped[mask]
+        return out
+
+    def apply(self, frame):
+        pts = self._get_pts(frame)
+        if pts is None:
+            return frame
+
+        left_c, right_c, rx, ry = self._cheek_params(pts)
+
+        # optional smoothing
+        left_pack = (left_c[0], left_c[1], rx, ry)
+        right_pack = (right_c[0], right_c[1], rx, ry)
+
+        if self.smooth:
+            if self._prev_left is None:
+                self._prev_left = left_pack
+                self._prev_right = right_pack
+            else:
+                self._prev_left = self._ema(self._prev_left, left_pack)
+                self._prev_right = self._ema(self._prev_right, right_pack)
+
+            lx, ly, lrx, lry = self._prev_left
+            rx_, ry_, rrx, rry = self._prev_right
+            left_c = np.array([lx, ly], dtype=np.float32)
+            right_c = np.array([rx_, ry_], dtype=np.float32)
+            rx, ry = float(lrx), float(lry)
+            rrx, rry = float(rrx), float(rry)
+        else:
+            rrx, rry = rx, ry
+
+        out = self._bulge_roi(frame, left_c, rx, ry)
+        out = self._bulge_roi(out, right_c, rrx, rry)
+        return out

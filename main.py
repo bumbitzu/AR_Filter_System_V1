@@ -30,6 +30,8 @@ from filters.SquirrelCheeksFilter import SquirrelCheeksFilter
 from filters.BigMouthFilter import BigMouthFilter
 from filters.PinocchioFilter import PinocchioFilter
 from filters.SharpChinFilter import SharpChinFilter
+from filters.GiantForeheadFilter import GiantForeheadFilter
+from filters.CubeHeadFilter import CubeHeadFilter
 from collections import deque
 
 
@@ -67,17 +69,23 @@ class CameraFiltersAutomation:
         self.filter_end_time = 0
 
         # Define Tiers: (Min_Tokens, Max_Tokens, Filter_Key, Duration)
-        self.fixed_tips = {
-            27:  ('Alien Face', AlienFaceFilter(), 12),
-            32:  ('Squirrel Cheeks', SquirrelCheeksFilter(), 13),
-            37:  ('Big Mouth', BigMouthFilter(), 14),
-            43:  ('Pinocchio', PinocchioFilter(), 30),
-            46:  ('Sharp Chin', SharpChinFilter(), 20),
-            33:  ('Sparkles', RainSparkleFilter(), 10),
-            50:  ('Rabbit Ears', RabbitEarsFilter(), 15),
-            99:  ('Big Eyes', BigEyeFilter(), 20),
-            200: ('Cyber Mask', FaceMask3D(), 30)
-        }
+        # Modifică în __init__
+        self.fixed_tips = [
+            # (Min, Max, Nume, Instanță, Durată)
+            (119, 128, 'Squirrel Cheeks', SquirrelCheeksFilter(), 10),
+            (129, 138, 'Alien Face', AlienFaceFilter(), 10),
+            (139, 148, 'Big Mouth', BigMouthFilter(), 10),
+            (149, 158, 'Pinocchio', PinocchioFilter(), 10),
+            (159, 168, 'Sharp Chin', SharpChinFilter(), 10),
+            (169, 178, 'Giant Forehead', GiantForeheadFilter(), 10),
+            (179, 188, 'Cube Head', CubeHeadFilter(), 10),
+        ]
+
+            # 189:  ('Big Eyes', BigEyeFilter(), 20),
+            # 199:  ('Rabbit Ears', RabbitEarsFilter(), 15),
+            # 209: ('Cyber Mask', FaceMask3D(), 30)
+
+        
 
 
 
@@ -195,19 +203,22 @@ class CameraFiltersAutomation:
                     return val
             except: pass
             print("Invalid selection.")
-
+    #
     def process_tip(self, amount, username="Viewer"):
-        """Activates filters ONLY for specific tip amounts."""
-        if amount in self.fixed_tips:
-            name, instance, duration = self.fixed_tips[amount]
-            # Add to the sequence
-            self.queue.append({
-                "name": name,
-                "user": username,
-                "duration": duration,
-                "instance": instance
-            })
-            print(f"Added {name} to queue for {username}")
+        """Activates filters based on token ranges."""
+        # Iterăm prin lista de configurări
+        for min_t, max_t, name, instance, duration in self.fixed_tips:
+            if min_t <= amount <= max_t:
+                self.queue.append({
+                    "name": name,
+                    "user": username,
+                    "duration": duration,
+                    "instance": instance
+                })
+                print(f"✅ [TIP] {amount} tokens de la {username} -> Activat: {name}")
+                return  # Oprim căutarea după ce am găsit range-ul corect
+
+        print(f"ℹ️ [TIP] {amount} tokens primite, dar nu există filtru configurat pentru această sumă.")
 
     def draw_rounded_rect_with_glow(self, frame, x1, y1, x2, y2, corner_radius, bg_color, border_color, glow_thickness=8):
         """
@@ -464,7 +475,7 @@ class CameraFiltersAutomation:
         else:
             # No active filter - waiting state
             waiting_y = y1 + 65
-            cv2.putText(frame, "Waiting for tips...", (x1 + 20, waiting_y),
+            cv2.putText(frame, "Tip now to unlock the fun", (x1 + 20, waiting_y),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (150, 150, 150), 2, cv2.LINE_AA)
 
 
@@ -515,26 +526,34 @@ class CameraFiltersAutomation:
 
             # Manual Testing Keys
             key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):
+            if key == ord('x'):
                 break
-            elif key == ord('a'):
-                self.process_tip(27)   # Alien Face - 27 tokens
-            elif key == ord('s'):
-                self.process_tip(32)   # Squirrel Cheeks - 32 tokens
-            elif key == ord('b'):
-                self.process_tip(37)   # Big Mouth - 37 tokens
-            elif key == ord('p'):
-                self.process_tip(43)   # Pinocchio - 43 tokens
             elif key == ord('1'):
-                self.process_tip(33)   # Sparkles - 33 tokens
+                self.process_tip(120)   # Squirrel Cheeks 
             elif key == ord('2'):
-                self.process_tip(50)   # Rabbit Ears - 50 tokens
+                self.process_tip(130)   # Alien Face
             elif key == ord('3'):
-                self.process_tip(99)   # Big Eyes - 99 tokens
+                self.process_tip(140)   # Big Mouth
             elif key == ord('4'):
-                self.process_tip(200)  # Cyber Mask - 200 tokens
+                self.process_tip(150)   # Pinocchio
             elif key == ord('5'):
-                self.process_tip(46)   # Sharp Chin - 46 tokens
+                self.process_tip(160)   # Sharp Chin
+            elif key == ord('6'):
+                self.process_tip(170)   # Giant Forehead
+            elif key == ord('7'):
+                self.process_tip(180)   # Cube Head
+            elif key == ord('8'):
+                self.process_tip(190)   # Melted Face
+            elif key == ord('9'):
+                self.process_tip(200)   # Snail Eyes
+            elif key == ord('0'):
+                self.process_tip(210)   # Permanent Smile
+            elif key == ord('q'):
+                self.process_tip(220)   # Big Eyes
+            elif key == ord('w'):
+                self.process_tip(230)   # Rabbit Ears
+            elif key == ord('e'):
+                self.process_tip(240)   # Cyber Mask
 
 
 
