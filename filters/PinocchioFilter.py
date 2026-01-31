@@ -3,6 +3,8 @@ import mediapipe as mp
 import numpy as np
 import time
 
+from core.FaceMeshFactory import create_face_mesh
+
 class PinocchioFilter:
     """
     AR filter that creates a Pinocchio nose adapting to head rotation.
@@ -10,13 +12,10 @@ class PinocchioFilter:
     
     def __init__(self):
         """Initialize MediaPipe Face Mesh and filter parameters."""
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
-            static_image_mode=False,
+        self.face_mesh = create_face_mesh(
             refine_landmarks=True,
-            max_num_faces=1,
             min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_tracking_confidence=0.5,
         )
         
         # Key landmark indices for PnP (Head Pose)

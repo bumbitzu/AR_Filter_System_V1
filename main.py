@@ -21,9 +21,6 @@ from core.OutputManager import OutputManager
 from core.ChaturbateListener import ChaturbateListener
 from core.StripchatListener import StripchatListener
 from core.CamsodaListener import CamsodaListener
-from filters.FaceMask3DFilter import FaceMask3D
-from filters.BigEyeFilter import BigEyeFilter
-from filters.RainSparkleFilter import RainSparkleFilter
 from filters.RabbitEarsFilter import RabbitEarsFilter
 from filters.AlienFaceFilter import AlienFaceFilter
 from filters.SquirrelCheeksFilter import SquirrelCheeksFilter
@@ -32,6 +29,9 @@ from filters.PinocchioFilter import PinocchioFilter
 from filters.SharpChinFilter import SharpChinFilter
 from filters.GiantForeheadFilter import GiantForeheadFilter
 from filters.CubeHeadFilter import CubeHeadFilter
+from filters.PermanentSmileFilter import PermanentSmileFilter
+from filters.DevilHornsFilter import DevilHornsFilter
+from filters.HatFilter import HatFilter
 from collections import deque
 
 
@@ -49,20 +49,38 @@ class CameraFiltersAutomation:
         if quality == "4K":
             self.width, self.height, self.fps = 3840, 2160, 30
         elif quality == "2K":
-            self.width, self.height, self.fps = 2560, 1440, 60
+            self.width, self.height, self.fps = 2560, 1440,25
         elif quality == "1080p":
-            self.width, self.height, self.fps = 1920, 1080, 60
+            self.width, self.height, self.fps = 1920, 1080, 25
         elif quality == "720p":
-            self.width, self.height, self.fps = 1280, 720, 60
+            self.width, self.height, self.fps = 1280, 720, 25
         else:  # Default 2K
-            self.width, self.height, self.fps = 2560, 1440, 60
+            self.width, self.height, self.fps = 2560, 1440, 25
+
+        # Optional FPS override (helps match OBS: 30/60)
+        try:
+            env_fps = os.getenv("FPS")
+            if env_fps is not None and str(env_fps).strip() != "":
+                self.fps = int(str(env_fps).strip())
+        except Exception:
+            pass
 
         selected_index = self.select_camera()
         self.cap = cv2.VideoCapture(selected_index, cv2.CAP_DSHOW)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         self.cap.set(cv2.CAP_PROP_FPS, self.fps)
-        self.output = OutputManager(mode=output_mode, quality=quality)
+
+        def _env_bool(name, default="false"):
+            v = os.getenv(name, default)
+            return str(v).strip().lower() in ("1", "true", "yes", "on")
+
+        self.output = OutputManager(
+            mode=output_mode,
+            quality=quality,
+            fps=self.fps,
+            use_opencl=_env_bool("USE_OPENCL", "false")
+        )
 
         self.queue = deque()  # Stores: {"name": "Sparkle", "user": "UserA", "duration": 30, "instance": obj}
         self.current_filter = None
@@ -74,23 +92,16 @@ class CameraFiltersAutomation:
             # (Min, Max, Nume, Instanță, Durată)
             (119, 128, 'Squirrel Cheeks', SquirrelCheeksFilter(), 10),
             (129, 138, 'Alien Face', AlienFaceFilter(), 10),
-            (139, 148, 'Big Mouth', BigMouthFilter(), 10),
+            (139, 148, 'Huge Mouth', BigMouthFilter(), 10),
             (149, 158, 'Pinocchio', PinocchioFilter(), 10),
-            (159, 168, 'Sharp Chin', SharpChinFilter(), 10),
+            (159, 168, 'Fancy Hat', HatFilter(), 10),
             (169, 178, 'Giant Forehead', GiantForeheadFilter(), 10),
             (179, 188, 'Cube Head', CubeHeadFilter(), 10),
+            (189, 198, 'Permanent Smile', PermanentSmileFilter(), 10),
+            (199, 208, 'Rabbit Ears', RabbitEarsFilter(), 10),
+            (209, 218, 'Devil Horns', DevilHornsFilter(), 10),
+
         ]
-
-            # 189:  ('Big Eyes', BigEyeFilter(), 20),
-            # 199:  ('Rabbit Ears', RabbitEarsFilter(), 15),
-            # 209: ('Cyber Mask', FaceMask3D(), 30)
-
-        
-
-
-
-
-
         # Initialize platform listeners
         self.listeners = []
         
@@ -115,33 +126,6 @@ class CameraFiltersAutomation:
         if not self.listeners:
             print("⚠️ No platform APIs configured. Use keyboard shortcuts for testing.")
         
-        # # Load static menu overlay (one-time initialization for performance)
-        # menu_path = os.path.join("assets", "menu_overlay.png")
-        # self.menu_image = cv2.imread(menu_path, cv2.IMREAD_UNCHANGED)  # Load with alpha channel
-        # if self.menu_image is None:
-        #     print(f"⚠️ Warning: Could not load menu overlay from '{menu_path}'. Menu will not be displayed.")
-        # else:
-        #     h, w = self.menu_image.shape[:2] # Get height and width
-        #     channels = self.menu_image.shape[2] if len(self.menu_image.shape) > 2 else 1 # Get number of channels
-        #     print(f"✅ Menu overlay loaded: {w}x{h}px, {channels} channels from '{menu_path}'")
-        #     
-        #     # Resize menu if it's too large to fit in the frame
-        #     max_menu_height = int(self.height * 0.4)  # Max 25% of frame height
-        #     max_menu_width = int(self.width * 0.20)   # Max 20% of frame width
-        #     
-        #     if h > max_menu_height or w > max_menu_width:
-        #         # Calculate scaling factor to fit within limits
-        #         scale_h = max_menu_height / h
-        #         scale_w = max_menu_width / w
-        #         scale = min(scale_h, scale_w)
-        #         
-        #         new_w = int(w * scale)
-        #         new_h = int(h * scale)
-        #         
-        #         self.menu_image = cv2.resize(self.menu_image, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        #         print(f"   Resized to: {new_w}x{new_h}px to fit frame ({self.width}x{self.height})")
-        
-        # Set menu_image to None when commented out
         self.menu_image = None
 
     def select_camera(self):
@@ -149,6 +133,14 @@ class CameraFiltersAutomation:
         import os
         import sys
         import subprocess
+
+        env_index = os.getenv("CAMERA_INDEX")
+        prompt = os.getenv("PROMPT_FOR_CAMERA", "false").strip().lower() in ("1", "true", "yes", "on")
+        if env_index is not None and str(env_index).strip() != "" and not prompt:
+            try:
+                return int(env_index)
+            except Exception:
+                pass
 
         os.environ["OPENCV_LOG_LEVEL"] = "OFF"
         camera_list = {}
@@ -476,7 +468,7 @@ class CameraFiltersAutomation:
             # No active filter - waiting state
             waiting_y = y1 + 65
             cv2.putText(frame, "Tip now to unlock the fun", (x1 + 20, waiting_y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (150, 150, 150), 2, cv2.LINE_AA)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
 
 
 
@@ -523,43 +515,33 @@ class CameraFiltersAutomation:
                 frame = self.current_filter["instance"].apply(frame)
 
             self.draw_queue_box(frame)
+            self.output.display(frame)
 
             # Manual Testing Keys
+            # NOTE: OpenCV window updates and input events are processed on waitKey().
             key = cv2.waitKey(1) & 0xFF
             if key == ord('x'):
                 break
             elif key == ord('1'):
-                self.process_tip(120)   # Squirrel Cheeks 
+                self.process_tip(119)   # Squirrel Cheeks 
             elif key == ord('2'):
-                self.process_tip(130)   # Alien Face
+                self.process_tip(129)   # Alien Face
             elif key == ord('3'):
-                self.process_tip(140)   # Big Mouth
+                self.process_tip(139)   # Big Mouth
             elif key == ord('4'):
-                self.process_tip(150)   # Pinocchio
+                self.process_tip(149)   # Pinocchio
             elif key == ord('5'):
-                self.process_tip(160)   # Sharp Chin
+                self.process_tip(159)   # Hat
             elif key == ord('6'):
-                self.process_tip(170)   # Giant Forehead
+                self.process_tip(169)   # Giant Forehead
             elif key == ord('7'):
-                self.process_tip(180)   # Cube Head
+                self.process_tip(179)   # Cube Head
             elif key == ord('8'):
-                self.process_tip(190)   # Melted Face
+                self.process_tip(189)   # Permanent Smile
             elif key == ord('9'):
-                self.process_tip(200)   # Snail Eyes
+                self.process_tip(199)   # Rabbit Ears
             elif key == ord('0'):
-                self.process_tip(210)   # Permanent Smile
-            elif key == ord('q'):
-                self.process_tip(220)   # Big Eyes
-            elif key == ord('w'):
-                self.process_tip(230)   # Rabbit Ears
-            elif key == ord('e'):
-                self.process_tip(240)   # Cyber Mask
-
-
-
-
-
-            self.output.display(frame)
+                self.process_tip(209)   # Devil Horns
 
         self.output.stop()
         self.cap.release()

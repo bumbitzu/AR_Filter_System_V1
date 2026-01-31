@@ -3,15 +3,14 @@ import mediapipe as mp
 import numpy as np
 import math
 
+from core.FaceMeshFactory import create_face_mesh
+
 class BigMouthFilter:
     def __init__(self):
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
-            static_image_mode=False,
-            max_num_faces=1,
+        self.face_mesh = create_face_mesh(
             refine_landmarks=True,
             min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_tracking_confidence=0.5,
         )
         
         # Parameters for Big Mouth Effect

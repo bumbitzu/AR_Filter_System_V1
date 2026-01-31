@@ -3,15 +3,14 @@ import numpy as np
 import mediapipe as mp
 import math
 
+from core.FaceMeshFactory import create_face_mesh
+
 class GiantForeheadFilter:
     def __init__(self):
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
-            static_image_mode=False,
-            max_num_faces=1,
+        self.face_mesh = create_face_mesh(
             refine_landmarks=True,
             min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_tracking_confidence=0.5,
         )
         self.base_map_x = None
         self.base_map_y = None

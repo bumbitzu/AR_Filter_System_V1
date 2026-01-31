@@ -2,6 +2,8 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
+from core.FaceMeshFactory import create_face_mesh
+
 
 class AlienFaceFilter:
     """
@@ -17,11 +19,10 @@ class AlienFaceFilter:
     
     def __init__(self):
         """Initialize MediaPipe Face Mesh and filter parameters."""
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
+        self.face_mesh = create_face_mesh(
             refine_landmarks=True,
             min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_tracking_confidence=0.5,
         )
         
         # Key landmark indices for facial features

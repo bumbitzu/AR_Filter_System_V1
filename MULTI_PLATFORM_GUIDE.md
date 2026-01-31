@@ -331,7 +331,7 @@ def trigger_myfreecams(amount, user):
 
 ---
 
-## 📞 Support & Debug
+## Debug
 
 ### Verificare Status Listeners
 

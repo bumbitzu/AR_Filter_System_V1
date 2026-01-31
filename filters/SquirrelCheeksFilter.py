@@ -2,6 +2,8 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
+from core.FaceMeshFactory import create_face_mesh
+
 
 class SquirrelCheeksFilter:
     """
@@ -13,12 +15,10 @@ class SquirrelCheeksFilter:
     """
 
     def __init__(self):
-        self.face_mesh = mp.solutions.face_mesh.FaceMesh(
-            static_image_mode=False,
-            max_num_faces=1,
+        self.face_mesh = create_face_mesh(
             refine_landmarks=True,
             min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_tracking_confidence=0.5,
         )
 
         # Landmarks (MediaPipe FaceMesh)

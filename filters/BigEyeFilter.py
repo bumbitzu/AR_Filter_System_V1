@@ -4,10 +4,11 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
+from core.FaceMeshFactory import create_face_mesh
+
 class BigEyeFilter:
     def __init__(self):
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(refine_landmarks=True)
+        self.face_mesh = create_face_mesh(refine_landmarks=True)
         # Landmarks for left eye center (468) and right eye center (473)
         self.eye_indices = [468, 473]
 

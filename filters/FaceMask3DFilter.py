@@ -5,13 +5,14 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
+from core.FaceMeshFactory import create_face_mesh
+
 
 class FaceMask3D:
     def __init__(self):
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(refine_landmarks=True)
+        self.face_mesh = create_face_mesh(refine_landmarks=True)
         self.trail_canvas = None
-        self.connections = self.mp_face_mesh.FACEMESH_TESSELATION
+        self.connections = mp.solutions.face_mesh.FACEMESH_TESSELATION
 
     def apply(self, frame):
         h, w, _ = frame.shape

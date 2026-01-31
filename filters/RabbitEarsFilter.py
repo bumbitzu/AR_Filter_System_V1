@@ -2,6 +2,9 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import os
+import math
+
+from core.FaceMeshFactory import create_face_mesh
 
 
 class RabbitEarsFilter:
@@ -14,12 +17,10 @@ class RabbitEarsFilter:
         """
         Inițializează detectorul Face Mesh și încarcă imaginea cu urechi de iepure.
         """
-        # Inițializare MediaPipe Face Mesh
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
+        self.face_mesh = create_face_mesh(
             refine_landmarks=True,
             min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_tracking_confidence=0.5,
         )
         
         # Landmarks key points pentru poziționare
@@ -27,6 +28,12 @@ class RabbitEarsFilter:
         self.forehead_top = 10  # Top of forehead
         self.left_temple = 234   # Left temple
         self.right_temple = 454  # Right temple
+        
+        # Additional landmarks for better rotation calculation
+        self.left_eye_outer = 33   # Left eye outer corner
+        self.right_eye_outer = 362  # Right eye outer corner
+        self.nose_tip = 1          # Nose tip
+        self.chin = 175            # Chin center
         
         # Încarcă imaginea cu urechi de iepure
         self.rabbit_ears_img = None
@@ -180,6 +187,52 @@ class RabbitEarsFilter:
         
         return frame
     
+    def _calculate_rotation_angle(self, face_landmarks):
+        """
+        Calculate the rotation angle of the head based on multiple landmarks for better accuracy.
+
+        Args:
+            face_landmarks: Landmarks of the face from MediaPipe.
+
+        Returns:
+            float: Adjusted rotation angle in degrees.
+        """
+        # Get eye corner landmarks (more stable than temples)
+        left_eye = face_landmarks.landmark[self.left_eye_outer]
+        right_eye = face_landmarks.landmark[self.right_eye_outer]
+        
+        # Calculate the slope of the line connecting the eye corners
+        delta_y = right_eye.y - left_eye.y
+        delta_x = right_eye.x - left_eye.x
+        
+        # Calculate the angle in radians and convert to degrees
+        angle = np.arctan2(delta_y, delta_x) * (180.0 / np.pi)
+        
+        # Apply much more subtle scaling for natural look
+        scaling_factor = 0.3  # Much smaller factor for subtle rotation
+        return -angle * scaling_factor  # Negative sign to match head rotation direction
+
+    def _rotate_image(self, image, angle):
+        """
+        Rotate an image around its center.
+
+        Args:
+            image: The image to rotate.
+            angle: The angle in degrees to rotate the image.
+
+        Returns:
+            np.array: The rotated image.
+        """
+        h, w = image.shape[:2]
+        center = (w // 2, h // 2)
+
+        # Get the rotation matrix
+        rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+
+        # Perform the rotation
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+        return rotated_image
+
     def apply(self, frame):
         """
         Aplică filtrul de urechi de iepure pe frame.
@@ -227,15 +280,21 @@ class RabbitEarsFilter:
                 (new_width, new_height),
                 interpolation=cv2.INTER_AREA
             )
-            
-            # Obține poziția unde trebuie plasate urechile
+
+            # Calculează unghiul de rotație al capului
+            rotation_angle = self._calculate_rotation_angle(face_landmarks)
+
+            # Rotatează imaginea cu urechi
+            rotated_ears = self._rotate_image(scaled_ears, rotation_angle)
+
+            # Get the position where the ears should be placed
             ears_x, ears_y = self._get_ears_position(
                 face_landmarks, w, h, new_width, new_height
             )
-            
-            # Suprapune imaginea cu urechi
+
+            # Overlay the rotated ears image
             output_frame = self._overlay_image_alpha(
-                output_frame, scaled_ears, ears_x, ears_y
+                output_frame, rotated_ears, ears_x, ears_y
             )
         
         return output_frame
