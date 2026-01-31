@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filter Queue</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: transparent;
+            color: white;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 400px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 4px solid #00d9ff;
+            border-radius: 30px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 217, 255, 0.3);
+            height: 290px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-evenly;
+            width: 100%;
+            gap: 20px; /* Add spacing between elements */
+            flex-direction: row;
+            margin-bottom: 30px;
+        }
+
+        .live-indicator {
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .live-dot {
+            width: 20px;
+            height: 20px;
+            background: #ff0000;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1.5);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(1);
+            }
+        }
+
+        .live-text {
+            font-weight: bold;
+            font-size: 24px;
+            color: #0400ff;;
+        }
+
+        .title {
+            font-size: 36px;
+            font-weight: bold;
+            text-align: center;
+            flex: 1;
+        }
+        .current-filter-border {
+            width: 100%;
+            height: 48px;
+            border: 4px solid #0400ff;;
+            border-radius: 14px;
+            box-sizing: border-box;
+            top: 78px; /* Adjust based on your layout */
+            left: 20px; /* Adjust based on your layout */
+            pointer-events: none; /* Allow clicks to pass through */
+        }
+        .current-filter {
+            background: transparent;
+            height: 40px;
+            border-radius: 10px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .current-filter::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0; /* Changed from right to left */
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #00ffea 0%, #eeff00 100%);
+            border-radius: 10px;
+            z-index: -1;
+        }
+
+        .current-filter.active::before {
+            animation: emptyBarReverse 10s linear forwards; /* Updated animation name */
+        }
+
+        @keyframes emptyBarReverse {
+            from {
+                width: 100%;
+            }
+            to {
+                width: 0%;
+            }
+        }
+
+        .current-filter-content {
+            width: 100%;
+            text-align: center;
+            animation: slideIn 0.5s ease-out;
+            color: #0400ff;;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .queue-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .queue-count {
+            color: #0400ff;
+            font-weight: bold;
+        }
+
+        .up-next-section {
+            margin-top: 20px;
+        }
+
+        .up-next-title {
+            color: #0400ff;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .filter-item {
+            background: transparent;
+            padding: 3px 20px;
+            margin-bottom: 2px;
+            font-size: 18px;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            text-align: left;
+        }
+
+        .filter-name {
+            font-weight: 500;
+            color: #0400ff;
+            font-weight: bold;
+        }
+
+        .empty-queue {
+            text-align: center;
+            color: #0400ff;
+            padding: 30px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* Animation for new items */
+        @keyframes fadeInUp {
+            from {
+                transform: translateY(20px);
+            }
+            to {
+
+                transform: translateY(0);
+            }
+        }
+
+        .filter-item.new {
+            animation: fadeInUp 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="live-indicator" id="live-indicator">
+                <div class="live-dot"></div>
+                <span class="live-text">LIVE</span>
+            </div>
+            <div class="current-filter-border">
+            <div class="current-filter" id="currentFilter">
+                <div class="current-filter-content" id="currentFilterContent">
+                    Tip now to change my face
+                </div>
+            </div>
+            </div>
+        </div>
+
+        <div class="queue-info">
+            <span class="queue-count" id="queueCount">0 in queue</span>
+        </div>
+
+        <div class="up-next-section">
+            <div class="up-next-title">UP NEXT:</div>
+            <div class="queue-list" id="queueList">
+            <div id="queueList">
+                <div class="empty-queue">Queue is empty</div>
+        </div>
+    </div>
+
+    <script>
+        // Server-Sent Events connection
+        let eventSource = null;
+        let previousFilterName = null;
+
+        function connectSSE() {
+            eventSource = new EventSource('/api/stream');
+
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                updateUI(data);
+            };
+
+            eventSource.onerror = function(error) {
+                console.error('SSE error:', error);
+                eventSource.close();
+                // Reconnect after 3 seconds
+                setTimeout(connectSSE, 3000);
+            };
+        }
+
+        function updateUI(data) {
+            // Update current filter
+            const currentFilterContent = document.getElementById('currentFilterContent');
+            const currentFilterElement = document.getElementById('currentFilter');
+            
+            if (data.current_filter) {
+                const currentFilterName = data.current_filter.filter;
+                
+                // Only restart animation if the filter actually changed
+                if (currentFilterName !== previousFilterName) {
+                    currentFilterContent.textContent = currentFilterName;
+                    document.getElementById('live-indicator').style.display = 'flex';
+                    
+                    // Start the loading bar animation only on filter change
+                    currentFilterElement.classList.remove('active');
+                    // Force reflow to restart animation
+                    void currentFilterElement.offsetWidth;
+                    currentFilterElement.classList.add('active');
+                    
+                    previousFilterName = currentFilterName;
+                }
+            } else {
+                currentFilterContent.textContent = 'Tip now to change my face';
+                document.getElementById('live-indicator').style.display = 'none';
+                currentFilterElement.classList.remove('active');
+                previousFilterName = null;
+            }
+
+            // Update queue count
+            const queueCount = document.getElementById('queueCount');
+            queueCount.textContent = `${data.total_count} in queue`;
+
+            // Update queue list
+            const queueList = document.getElementById('queueList');
+            if (data.queue && data.queue.length > 0) {
+                queueList.innerHTML = '';
+                data.queue.forEach((item, index) => {
+                    const filterItem = document.createElement('div');
+                    filterItem.className = 'filter-item neRw';
+                    filterItem.innerHTML = `
+                        <span class="filter-name">${item.filter}</span>
+                    `;
+                    queueList.appendChild(filterItem);
+                });
+            } else {
+                queueList.innerHTML = '<div class="empty-queue">Queue is empty</div>';
+            }
+        }
+
+        // Initial load
+        fetch('/api/queue')
+            .then(response => response.json())
+            .then(data => updateUI(data))
+            .catch(error => console.error('Error fetching initial data:', error));
+
+        // Connect to SSE for real-time updates
+        connectSSE();
+    </script>
+</body>
+</html>
