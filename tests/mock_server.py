@@ -1,12 +1,17 @@
+"""
+Mock Server pentru testarea sistemului de filtre
+Simuleaza API-urile platformelor (Chaturbate, Stripchat, Camsoda)
+Permite testarea fara a avea cont real sau acces la API-uri de productie
+"""
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-# Global variables to hold pending tips per platform
+# Variabile globale pentru stocarea temporara a tip-urilor simulate pe fiecare platforma
 pending_tips = {
-    'chaturbate': [],
-    'stripchat': [],
-    'camsoda': []
+    'chaturbate': [],  # Lista de tip-uri Chaturbate in asteptare
+    'stripchat': [],   # Lista de tip-uri Stripchat in asteptare
+    'camsoda': []      # Lista de tip-uri Camsoda in asteptare
 }
 
 
@@ -15,7 +20,18 @@ pending_tips = {
 # =====================================
 @app.route('/trigger/chaturbate/<int:amount>/<string:user>', methods=['GET'])
 def trigger_chaturbate(amount, user):
-    """Simulează un tip de pe Chaturbate"""
+    """
+    Endpoint pentru simularea unui tip pe Chaturbate
+    Accesibil prin browser pentru testare rapida
+    
+    Args:
+        amount: Suma de tokeni (int)
+        user: Numele utilizatorului care da tip (string)
+    
+    Returns:
+        Mesaj de confirmare
+    """
+    # Creeaza un eveniment in formatul Chaturbate Events API
     pending_tips['chaturbate'].append({
         "broadcaster": "test_broadcaster",
         "tip": {
@@ -37,9 +53,14 @@ def trigger_chaturbate(amount, user):
 
 @app.route('/events/chaturbate')
 def get_chaturbate_events():
-    """Returnează events Chaturbate"""
+    """
+    Endpoint care simuleaza Chaturbate Events API
+    Returneaza toate evenimentele in asteptare si le sterge
+    """
+    # Copiaza evenimentele curente
     events = pending_tips['chaturbate'].copy()
-    pending_tips['chaturbate'].clear()  # Clear after sending
+    # Sterge evenimentele dupa trimitere (simulate "consumed")
+    pending_tips['chaturbate'].clear()
     
     return jsonify({
         "events": events,
@@ -52,7 +73,18 @@ def get_chaturbate_events():
 # =====================================
 @app.route('/trigger/stripchat/<int:amount>/<string:user>', methods=['GET'])
 def trigger_stripchat(amount, user):
-    """Simulează un tip de pe Stripchat"""
+    """
+    Endpoint pentru simularea unui tip pe Stripchat
+    Accesibil prin browser pentru testare rapida
+    
+    Args:
+        amount: Suma de tokeni (int)
+        user: Numele utilizatorului care da tip (string)
+    
+    Returns:
+        Mesaj de confirmare
+    """
+    # Creeaza un eveniment in formatul Stripchat Events API
     pending_tips['stripchat'].append({
         "type": "tip",
         "data": {
@@ -67,9 +99,14 @@ def trigger_stripchat(amount, user):
 
 @app.route('/events/stripchat')
 def get_stripchat_events():
-    """Returnează events Stripchat"""
+    """
+    Endpoint care simuleaza Stripchat Events API
+    Returneaza toate evenimentele in asteptare si le sterge
+    """
+    # Copiaza evenimentele curente
     events = pending_tips['stripchat'].copy()
-    pending_tips['stripchat'].clear()  # Clear after sending
+    # Sterge evenimentele dupa trimitere
+    pending_tips['stripchat'].clear()
     
     return jsonify({
         "events": events,
@@ -82,7 +119,18 @@ def get_stripchat_events():
 # =====================================
 @app.route('/trigger/camsoda/<int:amount>/<string:user>', methods=['GET'])
 def trigger_camsoda(amount, user):
-    """Simulează un tip de pe Camsoda"""
+    """
+    Endpoint pentru simularea unui tip pe Camsoda
+    Accesibil prin browser pentru testare rapida
+    
+    Args:
+        amount: Suma de tokeni (int)
+        user: Numele utilizatorului care da tip (string)
+    
+    Returns:
+        Mesaj de confirmare
+    """
+    # Creeaza un eveniment in formatul Camsoda External API
     pending_tips['camsoda'].append({
         "event_type": "tip",
         "tip_amount": amount,
@@ -95,9 +143,14 @@ def trigger_camsoda(amount, user):
 
 @app.route('/events/camsoda')
 def get_camsoda_events():
-    """Returnează events Camsoda"""
+    """
+    Endpoint care simuleaza Camsoda External API
+    Returneaza toate evenimentele in asteptare si le sterge
+    """
+    # Copiaza evenimentele curente
     events = pending_tips['camsoda'].copy()
-    pending_tips['camsoda'].clear()  # Clear after sending
+    # Sterge evenimentele dupa trimitere
+    pending_tips['camsoda'].clear()
     
     return jsonify({
         "events": events,
@@ -110,7 +163,11 @@ def get_camsoda_events():
 # =====================================
 @app.route('/')
 def home():
-    """Afișează documentația API-ului de testare"""
+    """
+    Pagina principala cu documentatie interactiva
+    Afiseaza toate endpoint-urile disponibile si exemple de utilizare
+    Include linkuri clickabile pentru testare rapida
+    """
     return """
     <html>
     <head>
@@ -276,72 +333,60 @@ def home():
             
             <h2>🎯 Filtre Disponibile</h2>
             <ul>
-                <li><strong>120 tokens</strong> → Squirrel Cheeks 🐿️ (10s)</li>
-                <li><strong>130 tokens</strong> → Alien Face 👽 (10s)</li>
-                <li><strong>140 tokens</strong> → Big Mouth 👄 (10s)</li>
-                <li><strong>150 tokens</strong> → Pinocchio 🤥 (10s)</li>
-                <li><strong>160 tokens</strong> → Sharp Chin 🎩 (10s)</li>
-                <li><strong>170 tokens</strong> → Giant Forehead 🧠 (10s)</li>
-                <li><strong>180 tokens</strong> → Cube Head 🧊 (10s)</li>
-                <li><strong>190 tokens</strong> → Big Eyes 👀 (10s)</li>
-                <li><strong>200 tokens</strong> → Permanent Smile 😬 (10s)</li>
-                <li><strong>210 tokens</strong> → Rain Sparkles ✨ (10s)</li>
-                <li><strong>220 tokens</strong> → Rabbit Ears 🐰 (10s)</li>
-                <li><strong>230 tokens</strong> → Devil Horns 😈 (10s)</li>
-                <li><strong>245 tokens</strong> → Cyber Mask 🤖 (10s)</li>
+                <li><strong>119 tokens</strong> → Cartoon Style 🎨 (10s)</li>
+                <li><strong>129 tokens</strong> → Neon Devil 😈 (10s)</li>
+                <li><strong>139 tokens</strong> → Shock ML ⚡ (10s)</li>
+                <li><strong>149 tokens</strong> → Crying ML 😢 (10s)</li>
+                <li><strong>159 tokens</strong> → Kisses 💋 (10s)</li>
+                <li><strong>169 tokens</strong> → Pinocchio 🤥 (10s)</li>
+                <li><strong>179 tokens</strong> → Ski Mask 🎿 (10s)</li>
+                <li><strong>189 tokens</strong> → Cowboy 🤠 (10s)</li>
+                <li><strong>199 tokens</strong> → Big Cheeks 😊 (10s)</li>
+                <li><strong>209 tokens</strong> → Lips Morph 👄 (10s)</li>
             </ul>
             
             <div class="test-links">
                 <h3>🧪 Link-uri de Testare Rapidă</h3>
                 <p><strong>Chaturbate:</strong></p>
                 <ul>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/120/TestUser1', 'Chaturbate: 120 tokens (Squirrel Cheeks 🐿️)')">120 tokens (Squirrel Cheeks 🐿️)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/130/TestUser2', 'Chaturbate: 130 tokens (Alien Face 👽)')">130 tokens (Alien Face 👽)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/140/TestUser3', 'Chaturbate: 140 tokens (Big Mouth 👄)')">140 tokens (Big Mouth 👄)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/150/TestUser4', 'Chaturbate: 150 tokens (Pinocchio 🤥)')">150 tokens (Pinocchio 🤥)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/160/TestUser5', 'Chaturbate: 160 tokens (Sharp Chin 🎩)')">160 tokens (Sharp Chin 🎩)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/170/TestUser6', 'Chaturbate: 170 tokens (Giant Forehead 🧠)')">170 tokens (Giant Forehead 🧠)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/180/TestUser7', 'Chaturbate: 180 tokens (Cube Head 🧊)')">180 tokens (Cube Head 🧊)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/190/TestUser8', 'Chaturbate: 190 tokens (Big Eyes 👀)')">190 tokens (Big Eyes 👀)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/200/TestUser9', 'Chaturbate: 200 tokens (Permanent Smile 😬)')">200 tokens (Permanent Smile 😬)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/210/TestUser10', 'Chaturbate: 210 tokens (Rain Sparkles ✨)')">210 tokens (Rain Sparkles ✨)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/220/TestUser11', 'Chaturbate: 220 tokens (Rabbit Ears 🐰)')">220 tokens (Rabbit Ears 🐰)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/230/TestUser12', 'Chaturbate: 230 tokens (Devil Horns 😈)')">230 tokens (Devil Horns 😈)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/245/TestUser13', 'Chaturbate: 245 tokens (Cyber Mask 🤖)')">245 tokens (Cyber Mask 🤖)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/119/TestUser1', 'Chaturbate: 119 tokens (Cartoon Style 🎨)')">119 tokens (Cartoon Style 🎨)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/129/TestUser2', 'Chaturbate: 129 tokens (Neon Devil 😈)')">129 tokens (Neon Devil 😈)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/139/TestUser3', 'Chaturbate: 139 tokens (Shock ML ⚡)')">139 tokens (Shock ML ⚡)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/149/TestUser4', 'Chaturbate: 149 tokens (Crying ML 😢)')">149 tokens (Crying ML 😢)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/159/TestUser5', 'Chaturbate: 159 tokens (Kisses 💋)')">159 tokens (Kisses 💋)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/169/TestUser6', 'Chaturbate: 169 tokens (Pinocchio 🤥)')">169 tokens (Pinocchio 🤥)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/179/TestUser7', 'Chaturbate: 179 tokens (Ski Mask 🎿)')">179 tokens (Ski Mask 🎿)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/189/TestUser8', 'Chaturbate: 189 tokens (Cowboy 🤠)')">189 tokens (Cowboy 🤠)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/199/TestUser9', 'Chaturbate: 199 tokens (Big Cheeks 😊)')">199 tokens (Big Cheeks 😊)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/chaturbate/209/TestUser10', 'Chaturbate: 209 tokens (Lips Morph 👄)')">209 tokens (Lips Morph 👄)</a></li>
                 </ul>
                 
                 <p><strong>Stripchat:</strong></p>
                 <ul>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/120/StripUser1', 'Stripchat: 120 tokens (Squirrel Cheeks 🐿️)')">120 tokens (Squirrel Cheeks 🐿️)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/130/StripUser2', 'Stripchat: 130 tokens (Alien Face 👽)')">130 tokens (Alien Face 👽)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/140/StripUser3', 'Stripchat: 140 tokens (Big Mouth 👄)')">140 tokens (Big Mouth 👄)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/150/StripUser4', 'Stripchat: 150 tokens (Pinocchio 🤥)')">150 tokens (Pinocchio 🤥)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/160/StripUser5', 'Stripchat: 160 tokens (Sharp Chin 🎩)')">160 tokens (Sharp Chin 🎩)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/170/StripUser6', 'Stripchat: 170 tokens (Giant Forehead 🧠)')">170 tokens (Giant Forehead 🧠)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/180/StripUser7', 'Stripchat: 180 tokens (Cube Head 🧊)')">180 tokens (Cube Head 🧊)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/190/StripUser8', 'Stripchat: 190 tokens (Big Eyes 👀)')">190 tokens (Big Eyes 👀)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/200/StripUser9', 'Stripchat: 200 tokens (Permanent Smile 😬)')">200 tokens (Permanent Smile 😬)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/210/StripUser10', 'Stripchat: 210 tokens (Rain Sparkles ✨)')">210 tokens (Rain Sparkles ✨)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/220/StripUser11', 'Stripchat: 220 tokens (Rabbit Ears 🐰)')">220 tokens (Rabbit Ears 🐰)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/230/StripUser12', 'Stripchat: 230 tokens (Devil Horns 😈)')">230 tokens (Devil Horns 😈)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/245/StripUser13', 'Stripchat: 245 tokens (Cyber Mask 🤖)')">245 tokens (Cyber Mask 🤖)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/119/StripUser1', 'Stripchat: 119 tokens (Cartoon Style 🎨)')">119 tokens (Cartoon Style 🎨)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/129/StripUser2', 'Stripchat: 129 tokens (Neon Devil 😈)')">129 tokens (Neon Devil 😈)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/139/StripUser3', 'Stripchat: 139 tokens (Shock ML ⚡)')">139 tokens (Shock ML ⚡)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/149/StripUser4', 'Stripchat: 149 tokens (Crying ML 😢)')">149 tokens (Crying ML 😢)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/159/StripUser5', 'Stripchat: 159 tokens (Kisses 💋)')">159 tokens (Kisses 💋)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/169/StripUser6', 'Stripchat: 169 tokens (Pinocchio 🤥)')">169 tokens (Pinocchio 🤥)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/179/StripUser7', 'Stripchat: 179 tokens (Ski Mask 🎿)')">179 tokens (Ski Mask 🎿)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/189/StripUser8', 'Stripchat: 189 tokens (Cowboy 🤠)')">189 tokens (Cowboy 🤠)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/199/StripUser9', 'Stripchat: 199 tokens (Big Cheeks 😊)')">199 tokens (Big Cheeks 😊)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/stripchat/209/StripUser10', 'Stripchat: 209 tokens (Lips Morph 👄)')">209 tokens (Lips Morph 👄)</a></li>
                 </ul>
                 
                 <p><strong>Camsoda:</strong></p>
                 <ul>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/120/CamUser1', 'Camsoda: 120 tokens (Squirrel Cheeks 🐿️)')">120 tokens (Squirrel Cheeks 🐿️)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/130/CamUser2', 'Camsoda: 130 tokens (Alien Face 👽)')">130 tokens (Alien Face 👽)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/140/CamUser3', 'Camsoda: 140 tokens (Big Mouth 👄)')">140 tokens (Big Mouth 👄)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/150/CamUser4', 'Camsoda: 150 tokens (Pinocchio 🤥)')">150 tokens (Pinocchio 🤥)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/160/CamUser5', 'Camsoda: 160 tokens (Sharp Chin 🎩)')">160 tokens (Sharp Chin 🎩)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/170/CamUser6', 'Camsoda: 170 tokens (Giant Forehead 🧠)')">170 tokens (Giant Forehead 🧠)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/180/CamUser7', 'Camsoda: 180 tokens (Cube Head 🧊)')">180 tokens (Cube Head 🧊)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/190/CamUser8', 'Camsoda: 190 tokens (Big Eyes 👀)')">190 tokens (Big Eyes 👀)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/200/CamUser9', 'Camsoda: 200 tokens (Permanent Smile 😬)')">200 tokens (Permanent Smile 😬)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/210/CamUser10', 'Camsoda: 210 tokens (Rain Sparkles ✨)')">210 tokens (Rain Sparkles ✨)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/220/CamUser11', 'Camsoda: 220 tokens (Rabbit Ears 🐰)')">220 tokens (Rabbit Ears 🐰)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/230/CamUser12', 'Camsoda: 230 tokens (Devil Horns 😈)')">230 tokens (Devil Horns 😈)</a></li>
-                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/245/CamUser13', 'Camsoda: 245 tokens (Cyber Mask 🤖)')">245 tokens (Cyber Mask 🤖)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/119/CamUser1', 'Camsoda: 119 tokens (Cartoon Style 🎨)')">119 tokens (Cartoon Style 🎨)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/129/CamUser2', 'Camsoda: 129 tokens (Neon Devil 😈)')">129 tokens (Neon Devil 😈)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/139/CamUser3', 'Camsoda: 139 tokens (Shock ML ⚡)')">139 tokens (Shock ML ⚡)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/149/CamUser4', 'Camsoda: 149 tokens (Crying ML 😢)')">149 tokens (Crying ML 😢)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/159/CamUser5', 'Camsoda: 159 tokens (Kisses 💋)')">159 tokens (Kisses 💋)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/169/CamUser6', 'Camsoda: 169 tokens (Pinocchio 🤥)')">169 tokens (Pinocchio 🤥)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/179/CamUser7', 'Camsoda: 179 tokens (Ski Mask 🎿)')">179 tokens (Ski Mask 🎿)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/189/CamUser8', 'Camsoda: 189 tokens (Cowboy 🤠)')">189 tokens (Cowboy 🤠)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/199/CamUser9', 'Camsoda: 199 tokens (Big Cheeks 😊)')">199 tokens (Big Cheeks 😊)</a></li>
+                    <li><a href="#" onclick="return sendTip('/trigger/camsoda/209/CamUser10', 'Camsoda: 209 tokens (Lips Morph 👄)')">209 tokens (Lips Morph 👄)</a></li>
                 </ul>
             </div>
             
@@ -359,6 +404,10 @@ def home():
 
 
 if __name__ == "__main__":
+    """
+    Punct de intrare pentru Mock Server
+    Afiseaza informatii despre endpoint-uri si porneste serverul Flask
+    """
     print("=" * 60)
     print("🚀 AR Filter System - Mock API Server")
     print("=" * 60)
@@ -366,8 +415,9 @@ if __name__ == "__main__":
     print("   • Chaturbate: http://127.0.0.1:5000/events/chaturbate")
     print("   • Stripchat:  http://127.0.0.1:5000/events/stripchat")
     print("   • Camsoda:    http://127.0.0.1:5000/events/camsoda")
-    print("\n🌐 Deschide http://127.0.0.1:5000 pentru documentație")
+    print("\n🌐 Deschide http://127.0.0.1:5000 pentru documentatie")
     print("=" * 60 + "\n")
     
+    # Porneste serverul Flask pe portul 5000
     app.run(port=5000, debug=False)
 

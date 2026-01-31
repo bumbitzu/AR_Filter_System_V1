@@ -1,5 +1,7 @@
 """
-Queue UI Server - Displays the filter queue in real-time for OBS integration
+Queue UI Server - Server web pentru afisarea cozii de filtre in timp real
+Folosit pentru integrare cu OBS (Open Broadcaster Software)
+Furnizeaza 2 pagini: coada in timp real si meniul de filtre
 """
 from flask import Flask, render_template, jsonify, Response
 import json
@@ -9,23 +11,32 @@ from collections import deque
 
 app = Flask(__name__)
 
-# Global queue data
+# Date globale pentru coada de filtre
 queue_data = {
-    "current_filter": None,
-    "queue": deque(maxlen=50),  # Maximum 50 items in queue
-    "total_count": 0
+    "current_filter": None,  # Filtrul activ momentan
+    "queue": deque(maxlen=50),  # Maxim 50 de elemente in coada
+    "total_count": 0  # Numarul total de filtre in asteptare
 }
 
-# Thread lock for queue data
+# Lock pentru sincronizarea accesului la date (thread-safe)
 queue_lock = threading.Lock()
 
-# SSE connections
+# Lista conexiunilor SSE active (Server-Sent Events)
 sse_connections = []
 
 
 def add_to_queue(filter_name, username, amount):
-    """Add a filter to the queue"""
+    """
+    Adauga un filtru nou in coada
+    Daca nu exista filtru activ, seteaza primul ca fiind activ
+    
+    Args:
+        filter_name: Numele filtrului (ex: "Cartoon Style")
+        username: Numele utilizatorului care a dat tip
+        amount: Suma de tokeni
+    """
     with queue_lock:
+        # Adauga noul item in coada
         queue_data["queue"].append({
             "filter": filter_name,
             "username": username,
@@ -33,54 +44,71 @@ def add_to_queue(filter_name, username, amount):
             "timestamp": time.time()
         })
         
-        # If no current filter, set the first one as current but DON'T remove from queue yet
+        # Daca nu exista filtru activ, seteaza primul din coada ca activ (FARA a-l sterge)
         if queue_data["current_filter"] is None and len(queue_data["queue"]) > 0:
             queue_data["current_filter"] = queue_data["queue"][0]
         
         queue_data["total_count"] = len(queue_data["queue"])
     
-    # Notify all SSE connections
+    # Notifica toate conexiunile SSE despre modificare
     broadcast_update()
 
 
 def next_filter():
-    """Move to the next filter in queue"""
+    """
+    Trece la urmatorul filtru din coada
+    Sterge filtrul curent si seteaza urmatorul ca fiind activ
+    """
     with queue_lock:
-        # Remove the current filter from queue if it exists
+        # Sterge filtrul curent din coada daca exista
         if len(queue_data["queue"]) > 0 and queue_data["current_filter"]:
-            # Remove first item (the one that was just playing)
+            # Sterge primul element (cel care tocmai s-a terminat)
             queue_data["queue"].popleft()
         
-        # Set next filter as current
+        # Seteaza urmatorul filtru ca fiind activ
         if len(queue_data["queue"]) > 0:
             queue_data["current_filter"] = queue_data["queue"][0]
         else:
+            # Daca nu mai sunt filtre, seteaza None
             queue_data["current_filter"] = None
         
         queue_data["total_count"] = len(queue_data["queue"])
     
+    # Notifica toate conexiunile SSE
     broadcast_update()
 
 
 def get_queue_state():
-    """Get current queue state"""
+    """
+    Obtine starea curenta a cozii pentru afisare
+    Returneaza filtrul activ + urmatoarele 3 filtre din coada
+    
+    Returns:
+        dict: Starea cozii cu current_filter, queue (urmatoarele 3) si total_count
+    """
     with queue_lock:
-        # Skip first item (current filter) and show next 3
+        # Sare peste primul element (filtrul curent) si afiseaza urmatoarele 3
         upcoming = list(queue_data["queue"])[1:4] if len(queue_data["queue"]) > 1 else []
-        # Total count should exclude the current filter
+        
+        # Numarul total exclude filtrul curent (doar cele in asteptare)
         waiting_count = len(queue_data["queue"]) - 1 if len(queue_data["queue"]) > 0 else 0
+        
         return {
             "current_filter": queue_data["current_filter"],
-            "queue": upcoming,  # Show next 3 after current
-            "total_count": waiting_count  # Only count items waiting, not current
+            "queue": upcoming,  # Urmatoarele 3 filtre
+            "total_count": waiting_count  # Doar cele in asteptare
         }
 
 
 def broadcast_update():
-    """Broadcast queue update to all SSE connections"""
+    """
+    Trimite update la toate conexiunile SSE active
+    Foloseste format SSE: "data: {...}\\n\\n"
+    """
     state = get_queue_state()
-    data = f"data: {json.dumps(state)}\n\n"
+    data = f"data: {json.dumps(state)}\\n\\n"
     
+    # Trimite la toate conexiunile, sterge cele care au esuat
     for conn in sse_connections[:]:
         try:
             conn.put(data)
@@ -90,45 +118,61 @@ def broadcast_update():
 
 @app.route('/')
 def index():
-    """Serve the main UI page"""
+    """
+    Pagina principala - afiseaza coada de filtre in timp real
+    Folosita pentru OBS overlay
+    """
     return render_template('queue.html')
 
 
 @app.route('/menu')
 def menu():
-    """Serve the menu page"""
+    """
+    Pagina cu meniul de filtre - afiseaza toate filtrele disponibile cu preturi
+    Folosita pentru OBS overlay static
+    """
     return render_template('menu.html')
 
 
 @app.route('/api/queue')
 def api_queue():
-    """Get current queue state as JSON"""
+    """
+    API endpoint pentru obtinerea starii cozii ca JSON
+    Folosit pentru integrari sau debugging
+    """
     return jsonify(get_queue_state())
 
 
 @app.route('/api/stream')
 def stream():
-    """Server-Sent Events endpoint for real-time updates"""
+    """
+    Endpoint Server-Sent Events pentru update-uri in timp real
+    Clientii se conecteaza aici si primesc push notifications automat
+    Implementeaza heartbeat la fiecare 30 secunde pentru keep-alive
+    """
     import queue
     
     def event_stream():
+        # Creeaza o coada separata pentru aceasta conexiune
         q = queue.Queue()
         sse_connections.append(q)
         
         try:
-            # Send initial state
+            # Trimite starea initiala la conectare
             state = get_queue_state()
             yield f"data: {json.dumps(state)}\n\n"
             
-            # Keep connection alive and send updates
+            # Mentine conexiunea activa si trimite update-uri
             while True:
                 try:
-                    data = q.get(timeout=30)  # 30 second timeout
+                    # Asteapta update (timeout 30 secunde)
+                    data = q.get(timeout=30)
                     yield data
                 except queue.Empty:
-                    # Send heartbeat to keep connection alive
+                    # Trimite heartbeat pentru a mentine conexiunea activa
                     yield ": heartbeat\n\n"
         except GeneratorExit:
+            # Curata conexiunea cand clientul se deconecteaza
             sse_connections.remove(q)
     
     return Response(event_stream(), mimetype='text/event-stream')
@@ -136,23 +180,40 @@ def stream():
 
 @app.route('/api/next', methods=['POST'])
 def api_next():
-    """Manually trigger next filter"""
+    """
+    API endpoint pentru avansare manuala la urmatorul filtru
+    Folosit pentru testare sau control manual
+    """
     next_filter()
     return jsonify({"status": "ok"})
 
 
 @app.route('/api/add/<filter_name>/<username>/<int:amount>', methods=['POST'])
 def api_add(filter_name, username, amount):
-    """Manually add filter to queue (for testing)"""
+    """
+    API endpoint pentru adaugare manuala de filtre in coada
+    Folosit pentru testare si debugging
+    
+    Args:
+        filter_name: Numele filtrului de adaugat
+        username: Numele utilizatorului (simulat)
+        amount: Suma de tokeni (simulata)
+    """
     add_to_queue(filter_name, username, amount)
     return jsonify({"status": "ok"})
 
 
 def run_server(host='127.0.0.1', port=8080):
-    """Run the Flask server"""
+    """
+    Porneste serverul Flask
+    
+    Args:
+        host: Adresa IP pe care sa asculte (default: localhost)
+        port: Portul pe care sa asculte (default: 8080)
+    """
     app.run(host=host, port=port, debug=False, threaded=True)
 
 
 if __name__ == '__main__':
-    print("🎨 Queue UI Server starting on http://127.0.0.1:8080")
+    print("🎨 Serverul Queue UI porneste pe http://127.0.0.1:8080")
     run_server()
