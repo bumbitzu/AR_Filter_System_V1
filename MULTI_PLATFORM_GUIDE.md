@@ -19,14 +19,9 @@ Fiecare platformă rulează pe propriul thread separat, permițând procesarea s
 AR_Filter_System_V1/
 ├── main.py                          # Aplicația principală
 ├── core/
-│   ├── OutputManager.py            # Manager pentru output video
 │   ├── ChaturbateListener.py       # Listener pentru Chaturbate
 │   ├── StripchatListener.py        # Listener pentru Stripchat
 │   └── CamsodaListener.py          # Listener pentru Camsoda
-├── filters/
-│   ├── BigEyeFilter.py             # Filtru ochi mari
-│   ├── FaceMask3DFilter.py         # Filtru mască 3D
-│   └── RainSparkleFilter.py        # Filtru particule
 └── tests/
     └── mock_server.py              # Server de testare pentru toate platformele
 ```
@@ -47,14 +42,13 @@ AR_Filter_System_V1/
                     └────────────┬────────────┘
                                  │
                     ┌────────────▼────────────┐
-                    │   Priority Queue        │
-                    │   (deque)               │
+                    │   Tip → Key Mapping     │
+                    │   (range → key list)    │
                     └────────────┬────────────┘
                                  │
                     ┌────────────▼────────────┐
-                    │   Filter Activation     │
-                    │   (Sparkles, Big Eyes,  │
-                    │    Cyber Mask)          │
+                    │   Global Key Presses    │
+                    │   (Snap listens)        │
                     └─────────────────────────┘
 ```
 
@@ -131,27 +125,20 @@ Server-ul va porni pe `http://127.0.0.1:5000` și va afișa:
 
 ### 2. Configurare Aplicație Principală
 
-Editează `main.py` pentru a activa/dezactiva platforme:
+Configurarea se face din `.env` (URL-urile API + mapare tips → taste). Exemplu:
 
-```python
-if __name__ == "__main__":
-    # Configurare URL-uri pentru fiecare platformă
-    CHATURBATE_URL = "http://127.0.0.1:5000/events/chaturbate"
-    STRIPCHAT_URL = "http://127.0.0.1:5000/events/stripchat"
-    CAMSODA_URL = "http://127.0.0.1:5000/events/camsoda"
-    
-    # Pentru a dezactiva o platformă:
-    # STRIPCHAT_URL = None
-    
-    app = CameraFiltersAutomation(
-        chaturbate_url=CHATURBATE_URL,
-        stripchat_url=STRIPCHAT_URL,
-        camsoda_url=CAMSODA_URL,
-        output_mode="window",  # sau "vcam" pentru virtual camera
-        quality="1080p"
-    )
-    app.run()
+```env
+CHATURBATE_URL=http://127.0.0.1:5000/events/chaturbate
+STRIPCHAT_URL=http://127.0.0.1:5000/events/stripchat
+CAMSODA_URL=http://127.0.0.1:5000/events/camsoda
+
+# Mapare tips → taste (Snap ascultă tastele)
+TIP_KEY_MAP=[{"min":119,"max":128,"keys":["1"],"label":"Key 1"}]
+KEYPRESS_HOLD_MS=50
+KEYPRESS_DELAY_MS=80
 ```
+
+⚠️ Snap trebuie să fie fereastra activă ca să primească tastele.
 
 ### 3. Pornire Aplicație
 
@@ -176,20 +163,21 @@ curl http://127.0.0.1:5000/trigger/stripchat/99/StripUser2
 curl http://127.0.0.1:5000/trigger/camsoda/200/CamUser3
 ```
 
-#### Opțiune C: Keyboard Shortcuts (fără server)
-- Apasă `1` → 35 tokens (Sparkles - closest to 33)
-- Apasă `2` → 105 tokens (Big Eyes - closest to 99)
-- Apasă `3` → 500 tokens (Cyber Mask - closest to 200)
+#### Opțiune C: Verificare taste în Snap
+- Pornește aplicația și asigură-te că Snap este fereastra activă
+- Trimite tips (mock) din browser/cURL
+- Verifică dacă Snap primește tastele configurate în `TIP_KEY_MAP`
 
 ---
 
 ## 🎯 Mapare Filtre
 
-| **Tokens** | **Filtru**     | **Durată** |
-|-----------|---------------|-----------|
-| 33        | Sparkles      | 10s       |
-| 99        | Big Eyes      | 20s       |
-| 200       | Cyber Mask    | 30s       |
+| **Tokens** | **Taste trimise** |
+|-----------|-------------------|
+| 119-128   | 1                 |
+| 129-138   | 2                 |
+| 139-148   | 3                 |
+| 149-158   | 4                 |
 
 ---
 

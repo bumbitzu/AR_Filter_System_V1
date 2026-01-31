@@ -11,13 +11,13 @@ Sistemul AR Filter folosește fișiere `.env` pentru a gestiona configurația. A
 ### 1. **`.env.test`** - Configurație pentru Testare
 - Mock server local (http://127.0.0.1:5000)
 - Toate platformele activate
-- Output mode: window
+- Key automation activat (mapare tips → taste)
 - Debug mode: activat
 
 ### 2. **`.env.production`** - Template pentru Producție
 - API-uri reale (placeholders)
 - Necesită completare cu API keys reale
-- Output mode: vcam
+- Key automation activat (mapare tips → taste)
 - Debug mode: dezactivat
 
 ### 3. **`.env`** - Fișier Activ
@@ -57,9 +57,9 @@ Ar trebui să vezi:
    ✅ Stripchat: http://127.0.0.1:5000/events/stripchat
    ✅ Camsoda: http://127.0.0.1:5000/events/camsoda
 
-⚙️  Settings:
-   Output Mode: window
-   Quality: 1080p
+⌨️  Key settings:
+   Hold: 50ms
+   Delay: 80ms
    Debug Mode: On
 ============================================================
 ```
@@ -113,9 +113,9 @@ Ar trebui să vezi:
    ✅ Stripchat: https://b2b.stripchat.com/api/...
    ✅ Camsoda: https://api.camsoda.com/api/v1/events/...
 
-⚙️  Settings:
-   Output Mode: vcam
-   Quality: 1080p
+⌨️  Key settings:
+   Hold: 50ms
+   Delay: 80ms
    Debug Mode: Off
 ============================================================
 ```
@@ -132,8 +132,9 @@ Ar trebui să vezi:
 | `CHATURBATE_ENABLED` | Activează Chaturbate | true, false | true |
 | `STRIPCHAT_ENABLED` | Activează Stripchat | true, false | true |
 | `CAMSODA_ENABLED` | Activează Camsoda | true, false | true |
-| `OUTPUT_MODE` | Modul de output | window, vcam | window |
-| `QUALITY` | Calitatea video | 1080p, 4K | 1080p |
+| `KEYPRESS_HOLD_MS` | Durată apăsare tastă (ms) | număr întreg | 50 |
+| `KEYPRESS_DELAY_MS` | Pauză între taste (ms) | număr întreg | 80 |
+| `TIP_KEY_MAP` | Mapare tips → taste (JSON) | JSON array | (implicit) |
 | `DEBUG_MODE` | Mod debug | true, false | false |
 | `VERBOSE_LOGGING` | Logging detaliat | true, false | false |
 
@@ -150,8 +151,9 @@ CHATURBATE_ENABLED=true
 STRIPCHAT_ENABLED=false
 CAMSODA_ENABLED=false
 CHATURBATE_URL=http://127.0.0.1:5000/events/chaturbate
-OUTPUT_MODE=window
-QUALITY=1080p
+KEYPRESS_HOLD_MS=50
+KEYPRESS_DELAY_MS=80
+TIP_KEY_MAP=[{"min":119,"max":128,"keys":["1"],"label":"Key 1"}]
 ```
 
 ### Exemplu 2: Stripchat + Camsoda în Production
@@ -164,17 +166,19 @@ STRIPCHAT_ENABLED=true
 CAMSODA_ENABLED=true
 STRIPCHAT_URL=https://b2b.stripchat.com/api/events?token=YOUR_TOKEN
 CAMSODA_URL=https://api.camsoda.com/v1/events?api_key=YOUR_KEY
-OUTPUT_MODE=vcam
-QUALITY=4K
+KEYPRESS_HOLD_MS=50
+KEYPRESS_DELAY_MS=80
+TIP_KEY_MAP=[{"min":100,"max":150,"keys":["ctrl+1"],"label":"Preset 1"}]
 ```
 
-### Exemplu 3: 4K Output în Window Mode
+### Exemplu 3: Mapare custom pentru taste
 
 Editează `.env`:
 ```bash
 ENVIRONMENT=test
-OUTPUT_MODE=window
-QUALITY=4K
+KEYPRESS_HOLD_MS=40
+KEYPRESS_DELAY_MS=60
+TIP_KEY_MAP=[{"min":200,"max":250,"keys":["f2"],"label":"Filter F2"}]
 # ... restul configurației
 ```
 
@@ -237,10 +241,10 @@ pip install -r requirements.txt
    - Fără ghilimele în jurul valorilor
    ```bash
    # ✅ Corect
-   OUTPUT_MODE=window
+   KEYPRESS_DELAY_MS=80
    
    # ❌ Greșit
-   OUTPUT_MODE = "window"
+   KEYPRESS_DELAY_MS = "80"
    ```
 
 ---
@@ -273,7 +277,7 @@ python main.py
 Aplicația va afișa la startup:
 - Environment mode (TEST/PRODUCTION)
 - Platforme activate/dezactivate
-- Settings (output_mode, quality, debug_mode)
+- Settings (hold_ms, delay_ms, debug_mode)
 
 Exemplu output:
 ```
@@ -286,9 +290,9 @@ Exemplu output:
    ✅ Stripchat: http://127.0.0.1:5000/events/stripchat
    ❌ Camsoda: Disabled
 
-⚙️  Settings:
-   Output Mode: window
-   Quality: 1080p
+⌨️  Key settings:
+   Hold: 50ms
+   Delay: 80ms
    Debug Mode: On
 ============================================================
 ```

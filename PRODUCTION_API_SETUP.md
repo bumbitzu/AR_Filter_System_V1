@@ -251,19 +251,20 @@ print(response.json())       # Should show events structure
 ```
 
 ### Step 3: Integrare în Sistem
-```python
-# În main.py:
-CHATURBATE_URL = "https://eventsapi.chaturbate.com/events/YOUR_USER/YOUR_TOKEN/"
-# ... celelalte URL-uri
+Configurează URL-urile și maparea tips → taste în `.env`, apoi rulează aplicația:
 
-app = CameraFiltersAutomation(
-    chaturbate_url=CHATURBATE_URL,
-    stripchat_url=STRIPCHAT_URL,
-    camsoda_url=CAMSODA_URL,
-    output_mode="window",  # sau "vcam" pentru virtual camera
-    quality="1080p"
-)
-app.run()
+```env
+CHATURBATE_URL=https://eventsapi.chaturbate.com/events/YOUR_USER/YOUR_TOKEN/
+STRIPCHAT_URL=https://b2b.stripchat.com/api/vxcammodels/events?token=YOUR_TOKEN
+CAMSODA_URL=https://api.camsoda.com/api/v1/events?api_key=YOUR_KEY
+
+TIP_KEY_MAP=[{"min":119,"max":128,"keys":["1"],"label":"Key 1"}]
+KEYPRESS_HOLD_MS=50
+KEYPRESS_DELAY_MS=80
+```
+
+```bash
+python main.py
 ```
 
 ---
@@ -284,8 +285,8 @@ def chaturbate_webhook():
     amount = data['object']['amount']
     username = data['object']['user']['username']
     
-    # Trigger filter
-    camera_app.process_tip(amount, username)
+    # Trigger key mapping
+    tip_app.process_tip(amount, username)
     
     return jsonify({'status': 'ok'})
 
