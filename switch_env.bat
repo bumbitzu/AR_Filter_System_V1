@@ -11,18 +11,18 @@ echo ============================================================
 echo   AR FILTER SYSTEM - ENVIRONMENT SWITCHER
 echo ============================================================
 echo.
-echo   Selectează environment-ul:
+echo   Selecteaza environment-ul:
 echo.
 echo   [1] TEST MODE (Mock Server)
 echo   [2] PRODUCTION MODE (API-uri Reale)
-echo   [3] Verifică environment activ
-echo   [4] Editează .env
-echo   [Q] Ieșire
+echo   [3] Verifica environment activ
+echo   [4] Editeaza .env
+echo   [Q] Iesire
 echo.
 echo ============================================================
 echo.
 
-set /p choice="Alege opțiunea (1/2/3/4/Q): "
+set /p choice="Alege optiunea (1/2/3/4/Q): "
 
 if /i "%choice%"=="1" goto TEST_MODE
 if /i "%choice%"=="2" goto PRODUCTION_MODE

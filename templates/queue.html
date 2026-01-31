@@ -231,15 +231,15 @@
         <div class="up-next-section">
             <div class="up-next-title">UP NEXT:</div>
             <div class="queue-list" id="queueList">
-            <div id="queueList">
                 <div class="empty-queue">Queue is empty</div>
+            </div>
         </div>
     </div>
 
     <script>
         // Server-Sent Events connection
         let eventSource = null;
-        let previousFilterName = null;
+        let previousFilterTimestamp = null;
 
         function connectSSE() {
             eventSource = new EventSource('/api/stream');
@@ -264,25 +264,26 @@
             
             if (data.current_filter) {
                 const currentFilterName = data.current_filter.filter;
+                const currentFilterTimestamp = data.current_filter.timestamp;
                 
-                // Only restart animation if the filter actually changed
-                if (currentFilterName !== previousFilterName) {
+                // Restart animation if the filter instance changed (using timestamp as unique ID)
+                if (currentFilterTimestamp !== previousFilterTimestamp) {
                     currentFilterContent.textContent = currentFilterName;
                     document.getElementById('live-indicator').style.display = 'flex';
                     
-                    // Start the loading bar animation only on filter change
+                    // Start the loading bar animation on each new filter instance
                     currentFilterElement.classList.remove('active');
                     // Force reflow to restart animation
                     void currentFilterElement.offsetWidth;
                     currentFilterElement.classList.add('active');
                     
-                    previousFilterName = currentFilterName;
+                    previousFilterTimestamp = currentFilterTimestamp;
                 }
             } else {
                 currentFilterContent.textContent = 'Tip now to change my face';
                 document.getElementById('live-indicator').style.display = 'none';
                 currentFilterElement.classList.remove('active');
-                previousFilterName = null;
+                previousFilterTimestamp = null;
             }
 
             // Update queue count
@@ -295,7 +296,7 @@
                 queueList.innerHTML = '';
                 data.queue.forEach((item, index) => {
                     const filterItem = document.createElement('div');
-                    filterItem.className = 'filter-item neRw';
+                    filterItem.className = 'filter-item new';
                     filterItem.innerHTML = `
                         <span class="filter-name">${item.filter}</span>
                     `;

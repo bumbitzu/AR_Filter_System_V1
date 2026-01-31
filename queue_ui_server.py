@@ -52,6 +52,7 @@ def add_to_queue(filter_name, username, amount):
     
     # Notifica toate conexiunile SSE despre modificare
     broadcast_update()
+    print(f"📤 Update trimis la {len(sse_connections)} conexiuni SSE")
 
 
 def next_filter():
@@ -76,6 +77,7 @@ def next_filter():
     
     # Notifica toate conexiunile SSE
     broadcast_update()
+    print(f"➡️ Next filter - Update trimis la {len(sse_connections)} conexiuni SSE")
 
 
 def get_queue_state():
@@ -106,14 +108,21 @@ def broadcast_update():
     Foloseste format SSE: "data: {...}\\n\\n"
     """
     state = get_queue_state()
-    data = f"data: {json.dumps(state)}\\n\\n"
+    data = f"data: {json.dumps(state)}\n\n"
+    
+    print(f"🔄 Broadcasting update: current={state['current_filter']['filter'] if state['current_filter'] else 'None'}, queue_size={len(state['queue'])}, total={state['total_count']}")
     
     # Trimite la toate conexiunile, sterge cele care au esuat
+    disconnected = []
     for conn in sse_connections[:]:
         try:
             conn.put(data)
         except:
+            disconnected.append(conn)
             sse_connections.remove(conn)
+    
+    if disconnected:
+        print(f"⚠️ {len(disconnected)} conexiuni SSE deconectate")
 
 
 @app.route('/')

@@ -69,14 +69,16 @@ echo   INSTALARE COMPLETA!
 echo ============================================================
 echo.
 echo Pasii urmatori:
-echo   1. Porneste mock server:    python tests\mock_server.py
-echo   2. Testeaza sistemul:        python tests\test_multi_platform.py
-echo   3. Ruleaza aplicatia:        python main.py
+echo   1. Porneste mock server pentru testare:    python tests\mock_server.py
+echo   2. Ruleaza aplicatia:                      python main.py sau folosete run.bat
 echo.
 echo Documentatie:
-echo   - Ghid Rapid:                README_QUICK_START.md
-echo   - Ghid Complet:              MULTI_PLATFORM_GUIDE.md
-echo   - Setup Productie:           PRODUCTION_API_SETUP.md
+echo   - README.md                  - Prezentare generala
+echo   - INSTALARE.md               - Ghid de instalare
+echo   - DEZVOLTARE.md              - Ghid de dezvoltare
+echo   - UTILIZARE.md               - Ghid de utilizare
+echo   - ARHITECTURA.md             - Arhitectura sistemului
+echo   - API_INTEGRATION.md         - Integrare API-uri
 echo.
 echo ============================================================
 echo.
