@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Transparent Queue Overlay</title>
+  <style>
+    * {
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  background: transparent;
+}
+
+.overlay {
+  width: 430px;
+  padding: 24px;
+  color: pink;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+  border-radius: 28px;
+  border: 4px solid pink;
+  box-shadow: 0 0 20px pink, 0 0 2px pink, 0 0 6px pinkWE;
+}
+
+/* HEADER */
+.header {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 2px solid rgba(255,255,255,0.15);
+  font-size: 26px;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+}
+
+.col-left,
+.col-right {
+  flex-shrink: 0;
+}
+.title {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  font-size: 28px;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+}
+.col-center {
+  flex: 1;      
+  text-align: center;
+  white-space: nowrap;
+}
+
+.col-right {
+  text-align: right;
+}
+
+/* ROWS */
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  font-size: 28px;
+  opacity: 1;
+}
+
+.price {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color:pink;
+  font-weight: 600;
+}
+
+.label {
+  opacity: 1;
+  color: pink;
+    font-weight: 600;
+}
+    
+.row.highlight {
+  font-weight: 600;
+  opacity: 1;
+}
+
+.separator {
+  height: 2px;
+  background: rgba(255,255,255,0.15);
+  margin: 16px 0;
+}
+
+/* Update animation to include color change */
+@keyframes slowTwinkle {
+  0% {
+    opacity: 1;
+    font-size: 56px;
+ 
+  }
+  50% {
+    opacity: 0.2;
+    font-size: 20px;
+
+  }
+  100% {
+    opacity: 1;
+    font-size: 56px;
+
+  }
+}
+
+
+
+/* Apply the animation to the twinkle class */
+.title.twinkle {
+  animation: slowTwinkle 2s infinite;
+}
+
+  </style>
+</head>
+<body>
+  <div class="overlay">
+
+    <!-- header cu titluri + iconite -->
+     <div class="title">
+
+     <span class="col-center" style="font-size: 30px; font-weight: bold;"><span style="font-size: 40px;">💢</span> Mask filter menu</span>
+    </div>
+    <div class="title twinkle">
+        <span class="col-center" style="font-size: 26px; font-weight: bold;">Try to change my face</span>
+    </div>
+    <div class="header">
+      <span class="col-left" style="font-size: 40px;">🪙</span>
+        
+      <span class="col-right" style="font-size: 40px;">🏷️</span>
+    </div>
+    <div class="row">
+      <span class="price">119 tk</span>
+      <span class="label">Cartoon Style</span>
+    </div>
+    <div class="row">
+      <span class="price">129 tk</span>
+      <span class="label">Neon Devil</span>
+    </div>
+    <div class="row">
+      <span class="price">139 tk</span>
+      <span class="label">Shock ML</span>
+    </div>
+    <div class="row">
+      <span class="price">149 tk</span>
+      <span class="label">Crying ML</span>
+    </div>
+    <div class="row">
+      <span class="price">159 tk</span>
+      <span class="label">Kisses</span>
+    </div>
+    <div class="row">
+        <span class="price">169 tk</span>
+        <span class="label">Pinocchio</span>
+    </div>
+    <div class="row">
+        <span class="price">179 tk</span>
+        <span class="label">Ski Mask</span>
+    </div>
+    <div class="row">
+        <span class="price">189 tk</span>
+        <span class="label">Cowboy</span>
+    </div>
+    <div class="row">
+        <span class="price">199 tk</span>
+        <span class="label">Big Cheeks</span>
+    </div>
+    <div class="row">
+        <span class="price">209 tk</span>
+        <span class="label">Lips Morph</span>
+    </div>
+  </div>
+</body>
+</html>

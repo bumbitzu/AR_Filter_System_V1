@@ -1,584 +1,524 @@
+"""
+AR Filter System - Aplicatie Principala
+Sistem automat de activare filtre AR bazat pe tips de la platforme de streaming
+"""
+
+# Importuri standard Python
+import json
 import os
-import sys
-
-os.environ["GLOG_minloglevel"] = "3"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-os.environ["OPENCV_LOG_LEVEL"] = "OFF"
-
-try:
-    null_fd = os.open(os.devnull, os.O_WRONLY)
-    old_stderr_fd = os.dup(sys.stderr.fileno())
-    os.dup2(null_fd, sys.stderr.fileno())
-except Exception:
-    pass
-
-import cv2
-import time
+import queue
 import threading
-import requests
-from dotenv import load_dotenv
-from core.OutputManager import OutputManager
+import time
+
+# Importuri biblioteci externe
+from dotenv import load_dotenv  # Pentru incarcarea variabilelor de mediu din .env
+from pynput.keyboard import Controller, Key, Listener  # Pentru simularea apasarii tastelor
+
+# Importuri module proprii - listenere pentru fiecare platforma
 from core.ChaturbateListener import ChaturbateListener
 from core.StripchatListener import StripchatListener
 from core.CamsodaListener import CamsodaListener
-from filters.FaceMask3DFilter import FaceMask3D
-from filters.BigEyeFilter import BigEyeFilter
-from filters.RainSparkleFilter import RainSparkleFilter
-from filters.RabbitEarsFilter import RabbitEarsFilter
-from collections import deque
 
+# Incercam sa importam serverul UI pentru coada de filtre
 try:
-    os.dup2(old_stderr_fd, sys.stderr.fileno())
-    os.close(null_fd)
-except Exception:
-    pass
+    from queue_ui_server import add_to_queue, next_filter, run_server as run_ui_server
+    UI_SERVER_AVAILABLE = True
+except ImportError:
+    UI_SERVER_AVAILABLE = False
+    print("⚠️ Serverul Queue UI nu este disponibil")
 
-class CameraFiltersAutomation:
-    def __init__(self, output_mode="window", chaturbate_url=None, stripchat_url=None, camsoda_url=None, quality="1080p"):
-        if quality == "4K":
-            self.width, self.height, self.fps = 3840, 2160, 30
-        elif quality == "720p":
-            self.width, self.height, self.fps = 1280, 720, 60
-        else:  # Default 1080p
-            self.width, self.height, self.fps = 1920, 1080, 60
 
-        selected_index = self.select_camera()
-        self.cap = cv2.VideoCapture(selected_index, cv2.CAP_DSHOW)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-        self.cap.set(cv2.CAP_PROP_FPS, self.fps)
-        self.output = OutputManager(mode=output_mode, quality=quality)
-
-        self.queue = deque()  # Stores: {"name": "Sparkle", "user": "UserA", "duration": 30, "instance": obj}
-        self.current_filter = None
-        self.filter_end_time = 0
-
-        # Define Tiers: (Min_Tokens, Max_Tokens, Filter_Key, Duration)
-        self.fixed_tips = {
-            33:  ('Sparkles', RainSparkleFilter(), 10),
-            50:  ('Rabbit Ears', RabbitEarsFilter(), 15),
-            99:  ('Big Eyes', BigEyeFilter(), 20),
-            200: ('Cyber Mask', FaceMask3D(), 30)
+class KeySender:
+    """
+    Clasa pentru trimiterea secventelor de taste catre sistem
+    Simuleaza apasarea tastelor pentru activarea filtrelor in Snap Camera
+    """
+    
+    def __init__(self, hold_ms=50, delay_ms=80):
+        """
+        Initializeaza controller-ul de tastatura
+        
+        Args:
+            hold_ms: Timp de tinere a tastei apasat (milisecunde)
+            delay_ms: Pauza intre apasari consecutive (milisecunde)
+        """
+        self.controller = Controller()  # Controller pynput pentru simularea tastelor
+        self.hold_seconds = max(0, hold_ms) / 1000.0  # Converteste ms in secunde
+        self.delay_seconds = max(0, delay_ms) / 1000.0
+        
+        # Dictionar pentru maparea alias-urilor de taste la obiecte Key
+        self.alias_map = {
+            "ctrl": Key.ctrl,
+            "control": Key.ctrl,
+            "shift": Key.shift,
+            "alt": Key.alt,
+            "option": Key.alt,
+            "cmd": Key.cmd,
+            "win": Key.cmd,
+            "super": Key.cmd,
+            "enter": Key.enter,
+            "return": Key.enter,
+            "space": Key.space,
+            "tab": Key.tab,
+            "esc": Key.esc,
+            "escape": Key.esc,
+            "backspace": Key.backspace,
+            "delete": Key.delete,
+            "up": Key.up,
+            "down": Key.down,
+            "left": Key.left,
+            "right": Key.right,
+            "home": Key.home,
+            "end": Key.end,
+            "pageup": Key.page_up,
+            "pagedown": Key.page_down,
         }
 
-        # Initialize platform listeners
+    def _resolve_key(self, token):
+        """
+        Converteste un string (ex: 'ctrl', 'f1') intr-un obiect Key
+        
+        Args:
+            token: String reprezentand o tasta (ex: 'ctrl', 'shift', '1', 'f2')
+            
+        Returns:
+            Obiect Key corespunzator sau caracterul daca e o singura litera
+        """
+        token = token.strip()
+        if token == "":
+            return None
+        if len(token) == 1:  # Daca e o singura litera/cifra, returneaza direct
+            return token
+
+        lowered = token.lower()
+        if lowered in self.alias_map:  # Cauta in dictionar de aliasuri
+            return self.alias_map[lowered]
+
+        # Verifica daca e tasta functie (F1-F12)
+        if lowered.startswith("f") and lowered[1:].isdigit():
+            fn_name = lowered
+            if hasattr(Key, fn_name):
+                return getattr(Key, fn_name)
+
+        return None
+
+    def _press_key(self, key):
+        """
+        Apasa si elibereaza o singura tasta
+        
+        Args:
+            key: Obiect Key sau caracter de apasat
+        """
+        if key is None:
+            return
+        self.controller.press(key)  # Apasa tasta
+        if self.hold_seconds > 0:
+            time.sleep(self.hold_seconds)  # Tine apasata
+        self.controller.release(key)  # Elibereaza tasta
+
+    def _press_combo(self, keys):
+        """
+        Apasa o combinatie de taste (ex: Ctrl+Shift+A)
+        Apasa tastele in ordine, apoi le elibereaza in ordine inversa
+        
+        Args:
+            keys: Lista de obiecte Key de apasat simultan
+        """
+        pressed = []
+        # Apasa toate tastele in ordine
+        for key in keys:
+            if key is None:
+                continue
+            self.controller.press(key)
+            pressed.append(key)
+        if self.hold_seconds > 0:
+            time.sleep(self.hold_seconds)
+        # Elibereaza tastele in ordine inversa
+        for key in reversed(pressed):
+            self.controller.release(key)
+
+    def send_sequence(self, key_sequence):
+        """
+        Trimite o secventa completa de taste
+        Suporta atat taste simple cat si combinatii (ex: ['ctrl+shift+a', '1', 'f2'])
+        
+        Args:
+            key_sequence: Lista de stringuri reprezentand taste sau combinatii
+        """
+        for entry in key_sequence:
+            # Daca contine '+', e o combinatie de taste (ex: 'ctrl+shift+a')
+            if isinstance(entry, str) and "+" in entry:
+                parts = [self._resolve_key(part) for part in entry.split("+")]
+                self._press_combo(parts)
+            else:
+                # Tasta simpla
+                key = self._resolve_key(entry if isinstance(entry, str) else str(entry))
+                self._press_key(key)
+            # Pauza intre taste
+            if self.delay_seconds > 0:
+                time.sleep(self.delay_seconds)
+
+
+class TipKeyAutomation:
+    """
+    Clasa principala pentru automatizarea filtrelor pe baza de tips
+    Asculta evenimente de la platforme (Chaturbate, Stripchat, Camsoda)
+    si activeaza filtre prin simulare de taste
+    """
+    def __init__(self, chaturbate_url=None, stripchat_url=None, camsoda_url=None, key_rules=None, hold_ms=50, delay_ms=80, filter_duration=10, filter_close_key=None, enable_ui_server=True, enable_manual_triggers=True):
+        """
+        Initializeaza sistemul de automatizare
+        
+        Args:
+            chaturbate_url: URL pentru API Chaturbate Events
+            stripchat_url: URL pentru API Stripchat Events
+            camsoda_url: URL pentru API Camsoda External
+            key_rules: Lista de reguli pentru maparea sumelor la taste
+            hold_ms: Durata apasarii tastei in milisecunde
+            delay_ms: Pauza intre taste in milisecunde
+            filter_duration: Durata filtrului activ in secunde
+            filter_close_key: Tasta pentru inchiderea filtrului
+            enable_ui_server: Porneste serverul web pentru UI
+            enable_manual_triggers: Activeaza ascultarea tastelor 1-9
+        """
+        self.key_sender = KeySender(hold_ms=hold_ms, delay_ms=delay_ms)
+        self.key_rules = key_rules or []
+        self.filter_duration = filter_duration
+        self.filter_close_key = filter_close_key  # Tastă pentru închiderea filtrului
+        self.queue = queue.Queue()
+        self.running = False
+        self.worker_thread = None
+        self.ui_server_thread = None
+        self.keyboard_listener = None
+        self.enable_ui_server = enable_ui_server and UI_SERVER_AVAILABLE
+        self.enable_manual_triggers = enable_manual_triggers
+        self.last_key_time = {}  # Track last trigger time for each key (cooldown)
+
+        # Lista cu toti listenerii activi pentru platforme
         self.listeners = []
         
-        # Start Chaturbate listener
+        # Porneste listener pentru Chaturbate daca e configurat
         if chaturbate_url:
-            chaturbate_listener = ChaturbateListener(chaturbate_url, self.process_tip)
-            chaturbate_listener.start()
-            self.listeners.append(chaturbate_listener)
+            listener = ChaturbateListener(chaturbate_url, self.process_tip)
+            listener.start()
+            self.listeners.append(listener)
         
-        # Start Stripchat listener
+        # Porneste listener pentru Stripchat daca e configurat
         if stripchat_url:
-            stripchat_listener = StripchatListener(stripchat_url, self.process_tip)
-            stripchat_listener.start()
-            self.listeners.append(stripchat_listener)
+            listener = StripchatListener(stripchat_url, self.process_tip)
+            listener.start()
+            self.listeners.append(listener)
         
-        # Start Camsoda listener
+        # Porneste listener pentru Camsoda daca e configurat
         if camsoda_url:
-            camsoda_listener = CamsodaListener(camsoda_url, self.process_tip)
-            camsoda_listener.start()
-            self.listeners.append(camsoda_listener)
-        
+            listener = CamsodaListener(camsoda_url, self.process_tip)
+            listener.start()
+            self.listeners.append(listener)
+
+        # Avertizare daca nu e configurata nicio platforma
         if not self.listeners:
-            print("⚠️ No platform APIs configured. Use keyboard shortcuts for testing.")
+            print("⚠️ Nicio platforma configurata. Asteptarea de tips este dezactivata.")
+
+    def start(self):
+        """
+        Porneste toate componentele sistemului:
+        - Thread worker pentru procesarea cozii de filtre
+        - Server web pentru interfata grafica (optional)
+        - Listener pentru trigger-uri manuale cu tastele 1-9 (optional)
+        """
+        if self.running:
+            return
+        self.running = True
         
-        # # Load static menu overlay (one-time initialization for performance)
-        # menu_path = os.path.join("assets", "menu_overlay.png")
-        # self.menu_image = cv2.imread(menu_path, cv2.IMREAD_UNCHANGED)  # Load with alpha channel
-        # if self.menu_image is None:
-        #     print(f"⚠️ Warning: Could not load menu overlay from '{menu_path}'. Menu will not be displayed.")
-        # else:
-        #     h, w = self.menu_image.shape[:2] # Get height and width
-        #     channels = self.menu_image.shape[2] if len(self.menu_image.shape) > 2 else 1 # Get number of channels
-        #     print(f"✅ Menu overlay loaded: {w}x{h}px, {channels} channels from '{menu_path}'")
-        #     
-        #     # Resize menu if it's too large to fit in the frame
-        #     max_menu_height = int(self.height * 0.4)  # Max 25% of frame height
-        #     max_menu_width = int(self.width * 0.20)   # Max 20% of frame width
-        #     
-        #     if h > max_menu_height or w > max_menu_width:
-        #         # Calculate scaling factor to fit within limits
-        #         scale_h = max_menu_height / h
-        #         scale_w = max_menu_width / w
-        #         scale = min(scale_h, scale_w)
-        #         
-        #         new_w = int(w * scale)
-        #         new_h = int(h * scale)
-        #         
-        #         self.menu_image = cv2.resize(self.menu_image, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        #         print(f"   Resized to: {new_w}x{new_h}px to fit frame ({self.width}x{self.height})")
+        # Porneste thread-ul worker pentru coada de filtre
+        self.worker_thread = threading.Thread(target=self._worker, daemon=True)
+        self.worker_thread.start()
+        print("🔧 [DEBUG] Thread worker pornit")
         
-        # Set menu_image to None when commented out
-        self.menu_image = None
+        # Porneste serverul web pentru UI daca e activat
+        if self.enable_ui_server:
+            self.ui_server_thread = threading.Thread(target=self._start_ui_server, daemon=True)
+            self.ui_server_thread.start()
+            print("🎨 Serverul Queue UI porneste pe http://127.0.0.1:8080")
+        
+        # Porneste listener-ul de taste pentru trigger manual daca e activat
+        if self.enable_manual_triggers:
+            self.keyboard_listener = Listener(on_press=self._on_key_press)
+            self.keyboard_listener.start()
+            print("⌨️  Taste pentru trigger manual activate (1-9, 0)")
+    
+    def _on_key_press(self, key):
+        """
+        Handler pentru apasarea manuala a tastelor 1-9
+        Activeaza filtrele corespunzatoare direct din tastatura
+        Include cooldown de 0.5 secunde intre trigger-uri
+        """
+        try:
+            # Mapare taste 1-9,0 la indecsi de reguli 0-9
+            key_map = {
+                '1': 0,  # Prima regula (Cartoon Style)
+                '2': 1,  # A doua regula (Neon Devil)
+                '3': 2,  # A treia regula (Shock ML)
+                '4': 3,  # A patra regula (Crying ML)
+                '5': 4,  # A cincea regula (Kisses)
+                '6': 5,  # A sasea regula (Pinocchio)
+                '7': 6,  # A saptea regula (Ski Mask)
+                '8': 7,  # A opta regula (Cowboy)
+                '9': 8,  # A noua regula (Big Cheeks)
+                '0': 9,  # A zecea regula (Lips Morph)
+            }
+            
+            # Extrage caracterul din obiectul key
+            if hasattr(key, 'char') and key.char in key_map:
+                current_time = time.time()
+                # Cooldown de 0.5 secunde intre trigger-uri pentru aceeasi tasta
+                if key.char not in self.last_key_time or (current_time - self.last_key_time[key.char]) > 0.5:
+                    self.last_key_time[key.char] = current_time
+                    rule_index = key_map[key.char]
+                    # Verifica daca exista regula la acest index
+                    if rule_index < len(self.key_rules):
+                        rule = self.key_rules[rule_index]
+                        # Foloseste valoarea minima din range ca suma
+                        amount = rule['min']
+                        print(f"🎹 Trigger manual: Tasta {key.char} → {rule['label']}")
+                        self.process_tip(amount, "Manual")
+        except Exception as e:
+            pass  # Ignora erorile din gestionarea tastelor
+    
+    def _start_ui_server(self):
+        """
+        Porneste serverul Flask pentru interfata web
+        Ruleaza in thread separat pentru a nu bloca executia principala
+        """
+        try:
+            run_ui_server(host='127.0.0.1', port=8080)
+        except Exception as e:
+            print(f"⚠️ Eroare la pornirea serverului UI: {e}")
 
-    def select_camera(self):
-        """Finds camera names on both Windows and macOS."""
-        import os
-        import sys
-        import subprocess
+    def stop(self):
+        """
+        Opreste toate componentele sistemului:
+        - Toti listenerii de platforme
+        - Listener-ul de tastatura
+        - Thread-ul worker (prin semnalizare cu None in coada)
+        """
+        self.running = False
+        
+        # Opreste toti listenerii de platforme
+        for listener in self.listeners:
+            listener.stop()
+        
+        # Opreste listener-ul de tastatura
+        if self.keyboard_listener:
+            self.keyboard_listener.stop()
+        
+        # Trimite semnal de stop la worker thread
+        try:
+            self.queue.put_nowait(None)
+        except Exception:
+            pass
+        
+        # Asteapta ca worker thread sa se termine (timeout 2 secunde)
+        if self.worker_thread:
+            self.worker_thread.join(timeout=2)
 
-        os.environ["OPENCV_LOG_LEVEL"] = "OFF"
-        camera_list = {}
-
-        # --- WINDOWS LOGIC ---
-        if sys.platform == 'win32':
-            try:
-                from pygrabber.dshow_graph import FilterGraph
-                devices = FilterGraph().get_input_devices()
-                for i, name in enumerate(devices):
-                    camera_list[i] = name
-            except Exception: pass
-
-        # --- MACOS LOGIC ---
-        elif sys.platform == 'darwin':
-            try:
-                cmd = ["system_profiler", "SPCameraDataType"]
-                output = subprocess.check_output(cmd).decode('utf-8')
-                names = [line.strip().replace("Model ID: ", "") for line in output.split("\n") if "Model ID" in line or "Name" in line]
-                for i, name in enumerate(names[:5]):
-                    camera_list[i] = name.split(":")[-1].strip()
-            except Exception: pass
-
-        # --- FALLBACK (Linux) ---
-        if not camera_list:
-            print("🔍 Scanning hardware ports...")
-            for i in range(5):
-                cap = cv2.VideoCapture(i)
-                if cap.isOpened():
-                    camera_list[i] = f"Camera Device {i}"
-                    cap.release()
-
-        print("\n" + "—"*45)
-        print("🎥 AVAILABLE VIDEO DEVICES")
-        print("—"*45)
-
-        if not camera_list:
-            print("⚠️ No cameras detected! Defaulting to index 0.")
-            return 0
-
-        for idx, name in camera_list.items():
-            print(f"   [{idx}] -> {name}")
-        print("—"*45)
-
-        while True:
-            choice = input(f"👉 Select Camera Index {list(camera_list.keys())}: ").strip()
-            if choice == "": return list(camera_list.keys())[0]
-            try:
-                val = int(choice)
-                if val in camera_list:
-                    print(f"✅ Selected: {camera_list[val]}")
-                    return val
-            except: pass
-            print("Invalid selection.")
+    def _worker(self):
+        print("🔧 [DEBUG] Thread worker ruleaza...")
+        
+        while self.running:
+            item = self.queue.get()
+            if item is None:
+                break
+            
+            print(f"🔧 [DEBUG] Procesez element din coada: {item['label']} cu tastele: {item['keys']}")
+            print(f"⏳ Filtru activ: {item['label']} pentru {self.filter_duration} secunde...")
+            
+            # Trimite tastele pentru a activa filtrul
+            self.key_sender.send_sequence(item["keys"])
+            print(f"✅ Taste apasate pentru activare: {item['keys']}")
+            
+            # Așteaptă durata filtrului
+            time.sleep(self.filter_duration)
+            
+            # Închide filtrul la final
+            if self.filter_close_key:
+                close_keys = [self.filter_close_key] if isinstance(self.filter_close_key, str) else self.filter_close_key
+                self.key_sender.send_sequence(close_keys)
+                print(f"🔴 Taste apasate pentru inchidere: {close_keys}")
+            else:
+                # Dacă nu e definită tastă de închidere, apasă din nou tastele de activare
+                self.key_sender.send_sequence(item["keys"])
+                print(f"🔴 Taste apasate pentru inchidere: {item['keys']} (reapasare)")
+            
+            # Move to next in UI queue after filter duration
+            if self.enable_ui_server:
+                next_filter()
+            
+            print(f"✅ Filtru {item['label']} finalizat. Trecem la urmatorul...\n")
+            self.queue.task_done()
 
     def process_tip(self, amount, username="Viewer"):
-        """Activates filters ONLY for specific tip amounts."""
-        if amount in self.fixed_tips:
-            name, instance, duration = self.fixed_tips[amount]
-            # Add to the sequence
-            self.queue.append({
-                "name": name,
-                "user": username,
-                "duration": duration,
-                "instance": instance
-            })
-            print(f"Added {name} to queue for {username}")
-
-    def draw_rounded_rect_with_glow(self, frame, x1, y1, x2, y2, corner_radius, bg_color, border_color, glow_thickness=8):
         """
-        Draws a rounded rectangle with glassmorphism glow effect.
+        Proceseaza un tip si adauga filtrul corespunzator in coada
+        Cauta in regulile configurate si gaseste filtrul potrivit pentru suma
         
         Args:
-            frame: The frame to draw on
-            x1, y1: Top-left coordinates
-            x2, y2: Bottom-right coordinates
-            corner_radius: Radius for rounded corners
-            bg_color: Background color (B, G, R)
-            border_color: Border/glow color (B, G, R) - Neon Magenta or Cyber Cyan
-            glow_thickness: Thickness of the glow effect
+            amount: Suma de tokeni primita
+            username: Numele utilizatorului care a dat tip-ul
         """
-        # Create overlay for semi-transparent background
-        overlay = frame.copy()
+        # Parcurge toate regulile si gaseste prima care se potriveste cu suma
+        for rule in self.key_rules:
+            if rule["min"] <= amount <= rule["max"]:
+                # Creeaza obiectul pentru coada
+                item = {
+                    "keys": rule["keys"],
+                    "amount": amount,
+                    "username": username,
+                    "label": rule["label"],
+                }
+                
+                # Adauga in coada UI pentru afisare
+                if self.enable_ui_server:
+                    add_to_queue(item['label'], item['username'], item['amount'])
+                
+                print(f"🔧 [DEBUG] Adaug in coada: {item}")
+                self.queue.put(item)
+                print(f"✅ [TIP] {amount} tokeni de la {username} -> Taste: {rule['label']}")
+                return
         
-        # Draw rounded background using circles at corners and rectangles
-        # Top-left corner
-        cv2.circle(overlay, (x1 + corner_radius, y1 + corner_radius), corner_radius, bg_color, -1, cv2.LINE_AA)
-        # Top-right corner
-        cv2.circle(overlay, (x2 - corner_radius, y1 + corner_radius), corner_radius, bg_color, -1, cv2.LINE_AA)
-        # Bottom-left corner
-        cv2.circle(overlay, (x1 + corner_radius, y2 - corner_radius), corner_radius, bg_color, -1, cv2.LINE_AA)
-        # Bottom-right corner
-        cv2.circle(overlay, (x2 - corner_radius, y2 - corner_radius), corner_radius, bg_color, -1, cv2.LINE_AA)
-        
-        # Fill rectangles
-        cv2.rectangle(overlay, (x1 + corner_radius, y1), (x2 - corner_radius, y2), bg_color, -1)
-        cv2.rectangle(overlay, (x1, y1 + corner_radius), (x2, y2 - corner_radius), bg_color, -1)
-        
-        # Blend overlay with frame for transparency
-        cv2.addWeighted(overlay, 0.3, frame, 0.7, 0, frame)
-        
-        # Draw glow border (thicker, semi-transparent)
-        glow_color = (border_color[0] // 2, border_color[1] // 2, border_color[2] // 2)
-        self._draw_rounded_border(frame, x1, y1, x2, y2, corner_radius, glow_color, glow_thickness, alpha=0.4)
-        
-        # Draw bright neon border (thin, bright)
-        self._draw_rounded_border(frame, x1, y1, x2, y2, corner_radius, border_color, 2, alpha=1.0)
+        # Daca nu s-a gasit nicio regula pentru suma asta
+        print(f"ℹ️ [TIP] {amount} tokeni primiti, dar nu exista taste configurate pentru aceasta suma.")
+
+    def run_forever(self):
+        """
+        Porneste sistemul si il mentine activ la infinit
+        Loop care tine aplicatia vie pana la Ctrl+C
+        """
+        self.start()
+        while True:
+            time.sleep(1)
+
+
+def _str_to_bool(value):
+    """
+    Converteste un string sau valoare la boolean
+    Recunoaste: "true", "1", "yes", "on" ca True (case-insensitive)
     
-    def _draw_rounded_border(self, frame, x1, y1, x2, y2, corner_radius, color, thickness, alpha=1.0):
-        """Helper to draw rounded border with specified thickness and alpha."""
-        if alpha < 1.0:
-            overlay = frame.copy()
-            self._draw_rounded_border_solid(overlay, x1, y1, x2, y2, corner_radius, color, thickness)
-            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
-        else:
-            self._draw_rounded_border_solid(frame, x1, y1, x2, y2, corner_radius, color, thickness)
+    Args:
+        value: Valoarea de convertit (string, bool sau None)
     
-    def _draw_rounded_border_solid(self, frame, x1, y1, x2, y2, corner_radius, color, thickness):
-        """Draws the actual rounded border lines."""
-        # Top line
-        cv2.line(frame, (x1 + corner_radius, y1), (x2 - corner_radius, y1), color, thickness, cv2.LINE_AA)
-        # Bottom line
-        cv2.line(frame, (x1 + corner_radius, y2), (x2 - corner_radius, y2), color, thickness, cv2.LINE_AA)
-        # Left line
-        cv2.line(frame, (x1, y1 + corner_radius), (x1, y2 - corner_radius), color, thickness, cv2.LINE_AA)
-        # Right line
-        cv2.line(frame, (x2, y1 + corner_radius), (x2, y2 - corner_radius), color, thickness, cv2.LINE_AA)
-        
-        # Corner arcs
-        cv2.ellipse(frame, (x1 + corner_radius, y1 + corner_radius), (corner_radius, corner_radius), 180, 0, 90, color, thickness, cv2.LINE_AA)
-        cv2.ellipse(frame, (x2 - corner_radius, y1 + corner_radius), (corner_radius, corner_radius), 270, 0, 90, color, thickness, cv2.LINE_AA)
-        cv2.ellipse(frame, (x1 + corner_radius, y2 - corner_radius), (corner_radius, corner_radius), 90, 0, 90, color, thickness, cv2.LINE_AA)
-        cv2.ellipse(frame, (x2 - corner_radius, y2 - corner_radius), (corner_radius, corner_radius), 0, 0, 90, color, thickness, cv2.LINE_AA)
-
-    def draw_pill_background(self, frame, text, x, y, font_scale, font_thickness, bg_color):
-        """Draws a pill-shaped background for highlighted text (e.g., token amounts)."""
-        text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0]
-        padding_x, padding_y = 12, 6
-        
-        # Create overlay for pill
-        overlay = frame.copy()
-        pill_x1 = x - padding_x
-        pill_y1 = y - text_size[1] - padding_y
-        pill_x2 = x + text_size[0] + padding_x
-        pill_y2 = y + padding_y
-        
-        # Draw rounded pill
-        pill_radius = (pill_y2 - pill_y1) // 2
-        cv2.circle(overlay, (pill_x1 + pill_radius, pill_y1 + pill_radius), pill_radius, bg_color, -1, cv2.LINE_AA)
-        cv2.circle(overlay, (pill_x2 - pill_radius, pill_y1 + pill_radius), pill_radius, bg_color, -1, cv2.LINE_AA)
-        cv2.rectangle(overlay, (pill_x1 + pill_radius, pill_y1), (pill_x2 - pill_radius, pill_y2), bg_color, -1)
-        
-        # Blend pill with frame
-        cv2.addWeighted(overlay, 0.8, frame, 0.2, 0, frame)
-        
-        return x, y
-
-    def update_queue(self):
-        """Manages the transition between filters in the sequence."""
-        now = time.time()
-
-        # If nothing is running, grab the next item from queue
-        if self.current_filter is None and self.queue:
-            self.current_filter = self.queue.popleft()
-            self.filter_end_time = now + self.current_filter["duration"]
-
-        # If something is running and time is up
-        elif self.current_filter and now > self.filter_end_time:
-            self.current_filter = None  # Clear it to trigger next one
-
-    def overlay_image_alpha(self, img, overlay, pos):
-        """
-        Efficiently overlay a transparent PNG image onto the frame using alpha blending.
-        
-        Args:
-            img: Background image (frame from video)
-            overlay: Foreground image with alpha channel (BGRA format)
-            pos: Tuple (x, y) for top-left position of overlay
-        
-        Performance: Uses proper alpha blending for semi-transparent pixels.
-        """
-        if overlay is None:
-            return  # Skip if overlay image not loaded
-        
-        x, y = pos
-        h, w = overlay.shape[:2]
-        
-        # Boundary check - ensure overlay fits within frame
-        if x < 0 or y < 0 or x + w > img.shape[1] or y + h > img.shape[0]:
-            return  # Skip if overlay would go out of bounds
-        
-        # Extract the region of interest (ROI) from the background
-        roi = img[y:y+h, x:x+w]
-        
-        # Check if overlay has alpha channel
-        if len(overlay.shape) == 3 and overlay.shape[2] == 4:
-            # BGRA image with alpha channel
-            overlay_bgr = overlay[:, :, :3].astype(float)  # Color channels (BGR)
-            alpha_mask = overlay[:, :, 3].astype(float) / 255.0  # Normalize alpha to 0-1
-            
-            # Expand alpha mask to 3 channels for broadcasting
-            alpha_3ch = cv2.merge([alpha_mask, alpha_mask, alpha_mask])
-            
-            # Blend: result = overlay * alpha + background * (1 - alpha)
-            blended = (overlay_bgr * alpha_3ch + roi.astype(float) * (1.0 - alpha_3ch)).astype('uint8')
-            
-            # Place the blended result back into the original image
-            img[y:y+h, x:x+w] = blended
-        elif len(overlay.shape) == 3 and overlay.shape[2] == 3:
-            # BGR image without alpha channel - direct copy
-            img[y:y+h, x:x+w] = overlay
-        else:
-            # Grayscale or other format - skip
-            pass
+    Returns:
+        bool: True sau False
+    """
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ("true", "1", "yes", "on") if value is not None else False
 
 
-    def draw_queue_box(self, frame):
-        """Draws the queue box on the right side with glassmorphism and progress bar."""
-        h, w, _ = frame.shape
-        box_w, box_h = 350, 170
-        x1, y1 = w - box_w - 20, h - box_h - 20
-        x2, y2 = w - 20, h - 20
-        corner_radius = 20
-        
-        # Neon colors (BGR format)
-        NEON_MAGENTA = (255, 0, 255)
-        CYBER_CYAN = (255, 255, 0)
-        PURE_WHITE = (255, 255, 255)
-        DARK_BG = (20, 15, 10)
-        
-        # Enhanced blur effect for glassmorphism
-        roi = frame[y1:y2, x1:x2].copy()
-        roi_blurred = cv2.GaussianBlur(roi, (21, 21), 0)
-        frame[y1:y2, x1:x2] = roi_blurred
-        
-        # Draw rounded rectangle with glow
-        self.draw_rounded_rect_with_glow(frame, x1, y1, x2, y2, corner_radius, DARK_BG, CYBER_CYAN, glow_thickness=8)
-        
-        if self.current_filter:
-            remaining = max(0, int(self.filter_end_time - time.time()))
-            total_duration = self.current_filter['duration']
-            elapsed = total_duration - remaining
-            progress = min(1.0, elapsed / total_duration) if total_duration > 0 else 0
-            
-            # Pulsing LIVE indicator
-            pulse = abs((time.time() * 2) % 2 - 1)  # Creates a 0->1->0 pulse
-            live_alpha = 0.5 + (pulse * 0.5)  # Varies between 0.5 and 1.0
-            live_size = int(8 + pulse * 3)  # Varies between 8 and 11
-            
-            # Draw LIVE indicator
-            live_x = x1 + 20
-            live_y = y1 + 28
-            
-            # Draw pulsing circle
-            live_overlay = frame.copy()
-            cv2.circle(live_overlay, (live_x, live_y), live_size, (0, 0, 255), -1, cv2.LINE_AA)
-            cv2.addWeighted(live_overlay, live_alpha, frame, 1 - live_alpha, 0, frame)
-            
-            # LIVE text
-            cv2.putText(frame, "LIVE", (live_x + 15, live_y + 6), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2, cv2.LINE_AA)
-            
-            # Filter name
-            filter_text = self.current_filter['name']
-            cv2.putText(frame, filter_text, (live_x + 70, live_y + 6),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, PURE_WHITE, 2, cv2.LINE_AA)
-            
-            # Progress bar
-            bar_x1 = x1 + 20
-            bar_y = y1 + 50
-            bar_w = box_w - 40
-            bar_h = 12
-            bar_corner = 6
-            
-            # Background bar (empty)
-            bg_overlay = frame.copy()
-            cv2.rectangle(bg_overlay, (bar_x1, bar_y), (bar_x1 + bar_w, bar_y + bar_h), (60, 60, 60), -1)
-            cv2.addWeighted(bg_overlay, 0.5, frame, 0.5, 0, frame)
-            
-            # Progress fill (colored)
-            fill_w = int(bar_w * (1 - progress))  # Shrinks as time elapses
-            if fill_w > 0:
-                # Gradient from cyan to magenta
-                progress_overlay = frame.copy()
-                
-                # Create gradient effect
-                for i in range(fill_w):
-                    ratio = i / fill_w if fill_w > 0 else 0
-                    # Interpolate between CYBER_CYAN and NEON_MAGENTA
-                    color = tuple(int(CYBER_CYAN[j] * (1 - ratio) + NEON_MAGENTA[j] * ratio) for j in range(3))
-                    cv2.line(progress_overlay, (bar_x1 + i, bar_y), (bar_x1 + i, bar_y + bar_h), color, 1)
-                
-                cv2.addWeighted(progress_overlay, 0.9, frame, 0.1, 0, frame)
-            
-            # Time remaining text
-            time_text = f"{remaining}s"
-            cv2.putText(frame, time_text, (bar_x1 + bar_w - 35, bar_y + bar_h + 20), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, PURE_WHITE, 2, cv2.LINE_AA)
-            
-            # Queue counter
-            queue_count = len(self.queue)
-            count_text = f"{queue_count} in queue"
-            cv2.putText(frame, count_text, (bar_x1, bar_y + bar_h + 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
-            
-            # Separator line
-            sep_y = bar_y + bar_h + 30
-            cv2.line(frame, (x1 + 20, sep_y), (x2 - 20, sep_y), (100, 100, 100), 1, cv2.LINE_AA)
-            
-            # Up Next list
-            next_y = sep_y + 20
-            cv2.putText(frame, "UP NEXT:", (x1 + 20, next_y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, CYBER_CYAN, 1, cv2.LINE_AA)
-            
-            # Display next 2 items
-            for i, item in enumerate(list(self.queue)[:3]):
-                next_y += 15
-                queue_text = f"{item['name']}"
-                cv2.putText(frame, queue_text, (x1 + 25, next_y),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (220, 220, 220), 1, cv2.LINE_AA)
-        else:
-            # No active filter - waiting state
-            waiting_y = y1 + 65
-            cv2.putText(frame, "Waiting for tips...", (x1 + 20, waiting_y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (150, 150, 150), 2, cv2.LINE_AA)
-
-
-
-    def run(self):
-        window_name = "AR_STREAM_WINDOW"
-        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-
-        print("--- APP RUNNING ---")
-        
-        first_frame = True  # Flag to resize menu on first frame
-
-        while self.cap.isOpened():
-            ret, frame = self.cap.read()
-            if not ret: break
-            frame = cv2.flip(frame, 1)
-            
-            # On first frame, ensure menu fits actual frame dimensions
-            if first_frame and self.menu_image is not None:
-                actual_h, actual_w = frame.shape[:2]
-                menu_h, menu_w = self.menu_image.shape[:2]
-                
-                # Check if menu needs resizing for actual frame
-                max_menu_h = int(actual_h * 0.8)  # Max 80% of actual height
-                max_menu_w = int(actual_w * 0.35)  # Max 35% of actual width
-                
-                if menu_h > max_menu_h or menu_w > max_menu_w:
-                    scale_h = max_menu_h / menu_h
-                    scale_w = max_menu_w / menu_w
-                    scale = min(scale_h, scale_w)
-                    
-                    new_w = int(menu_w * scale)
-                    new_h = int(menu_h * scale)
-                    
-                    self.menu_image = cv2.resize(self.menu_image, (new_w, new_h), interpolation=cv2.INTER_AREA)
-                
-                first_frame = False
-            
-            # Apply static menu overlay at top-left position (20, 20)
-            self.overlay_image_alpha(frame, self.menu_image, (20, 20))
-
-            self.update_queue()
-
-            if self.current_filter:
-                frame = self.current_filter["instance"].apply(frame)
-
-            self.draw_queue_box(frame)
-
-            # Manual Testing Keys
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):
-                break
-            elif key == ord('1'):
-                self.process_tip(33)   # Sparkles - 33 tokens
-            elif key == ord('2'):
-                self.process_tip(50)   # Rabbit Ears - 50 tokens
-            elif key == ord('3'):
-                self.process_tip(99)   # Big Eyes - 99 tokens
-            elif key == ord('4'):
-                self.process_tip(200)  # Cyber Mask - 200 tokens
-
-            self.output.display(frame)
-
-        self.output.stop()
-        self.cap.release()
+def load_key_rules():
+    """
+    Incarca regulile de mapare intre sume de tokeni si filtre
+    Returneaza lista cu 10 filtre, fiecare cu:
+    - min/max: Range de tokeni
+    - keys: Combinatie de taste pentru activare
+    - label: Numele filtrului pentru afisare
+    """
+    return [
+        {"min": 119, "max": 128, "keys": ["shift+q"], "label": "Cartoon Style"},
+        {"min": 129, "max": 138, "keys": ["shift+w"], "label": "Neon Devil"},
+        {"min": 139, "max": 148, "keys": ["shift+e"], "label": "Shock ML"},
+        {"min": 149, "max": 158, "keys": ["shift+r"], "label": "Crying ML"},
+        {"min": 159, "max": 168, "keys": ["shift+t"], "label": "Kisses"},
+        {"min": 169, "max": 178, "keys": ["shift+y"], "label": "Pinocchio"},
+        {"min": 179, "max": 189, "keys": ["shift+u"], "label": "Ski Mask"},
+        {"min": 190, "max": 198, "keys": ["shift+i"], "label": "Cowboy"},
+        {"min": 199, "max": 209, "keys": ["shift+o"], "label": "Big Cheeks"},
+        {"min": 210, "max": 219, "keys": ["shift+p"], "label": "Lips Morph"},
+    ]
 
 
 def load_config_from_env():
     """
-    Încarcă configurația din fișierul .env
-    Returns: dict cu configurația aplicației
+    Incarca configuratia din fisierul .env
+    Citeste URL-urile platformelor, setarile de taste si durata filtrelor
+    
+    Returns:
+        dict: Dictionar cu toate setarile aplicatiei
     """
-    # Încarcă .env file
     load_dotenv()
     
-    # Helper function pentru boolean values
-    def str_to_bool(value):
-        if isinstance(value, bool):
-            return value
-        return value.lower() in ('true', '1', 'yes', 'on') if value else False
-    
-    # Citește environment variables
-    environment = os.getenv('ENVIRONMENT', 'test')
-    
-    config = {
-        'environment': environment,
-        'chaturbate_url': os.getenv('CHATURBATE_URL') if str_to_bool(os.getenv('CHATURBATE_ENABLED', 'true')) else None,
-        'stripchat_url': os.getenv('STRIPCHAT_URL') if str_to_bool(os.getenv('STRIPCHAT_ENABLED', 'true')) else None,
-        'camsoda_url': os.getenv('CAMSODA_URL') if str_to_bool(os.getenv('CAMSODA_ENABLED', 'true')) else None,
-        'output_mode': os.getenv('OUTPUT_MODE', 'window'),
-        'quality': os.getenv('QUALITY', '1080p'),
-        'camera_index': int(os.getenv('CAMERA_INDEX', '0')),
-        'debug_mode': str_to_bool(os.getenv('DEBUG_MODE', 'false')),
-        'verbose_logging': str_to_bool(os.getenv('VERBOSE_LOGGING', 'false'))
+    # Parse tasta de inchidere filtru - poate fi None, o tasta singura sau combinatie
+    filter_close_key_raw = os.getenv("FILTER_CLOSE_KEY", "").strip()
+    filter_close_key = filter_close_key_raw if filter_close_key_raw else None
+
+    return {
+        "environment": os.getenv("ENVIRONMENT", "test"),
+        "chaturbate_url": os.getenv("CHATURBATE_URL") if _str_to_bool(os.getenv("CHATURBATE_ENABLED", "true")) else None,
+        "stripchat_url": os.getenv("STRIPCHAT_URL") if _str_to_bool(os.getenv("STRIPCHAT_ENABLED", "true")) else None,
+        "camsoda_url": os.getenv("CAMSODA_URL") if _str_to_bool(os.getenv("CAMSODA_ENABLED", "true")) else None,
+        "hold_ms": int(os.getenv("KEYPRESS_HOLD_MS", "50")),
+        "delay_ms": int(os.getenv("KEYPRESS_DELAY_MS", "80")),
+        "filter_duration": int(os.getenv("FILTER_DURATION_SECONDS", "10")),
+        "filter_close_key": filter_close_key,
     }
     
-    return config
 
 
 if __name__ == "__main__":
-    # Încarcă configurația din .env
+    """
+    Punct de intrare in aplicatie
+    Incarca configuratia, afiseaza setarile si porneste sistemul
+    """
+    # Incarca configuratia din .env si regulile de taste
     config = load_config_from_env()
+    key_rules = load_key_rules()
+
+    # Afiseaza header-ul cu modul de functionare
+    print("=" * 60)
+    print(f"🚀 TIP → TASTE AUTOMATIZATE - MOD {config['environment'].upper()}")
+    print("=" * 60)
     
-    # Afișează informații despre configurație
-    print("=" * 60)
-    print(f"🚀 AR FILTER SYSTEM - {config['environment'].upper()} MODE")
-    print("=" * 60)
-    print(f"\n📡 Platforme configurate:")
-    if config['chaturbate_url']:
+    # Afiseaza platformele configurate
+    print("\n📡 Platforme configurate:")
+    if config["chaturbate_url"]:
         print(f"   ✅ Chaturbate: {config['chaturbate_url']}")
     else:
-        print(f"   ❌ Chaturbate: Disabled")
-    
-    if config['stripchat_url']:
+        print("   ❌ Chaturbate: Dezactivat")
+
+    if config["stripchat_url"]:
         print(f"   ✅ Stripchat: {config['stripchat_url']}")
     else:
-        print(f"   ❌ Stripchat: Disabled")
-    
-    if config['camsoda_url']:
+        print("   ❌ Stripchat: Dezactivat")
+
+    if config["camsoda_url"]:
         print(f"   ✅ Camsoda: {config['camsoda_url']}")
     else:
-        print(f"   ❌ Camsoda: Disabled")
-    
-    print(f"\n⚙️  Settings:")
-    print(f"   Output Mode: {config['output_mode']}")
-    print(f"   Quality: {config['quality']}")
-    print(f"   Debug Mode: {'On' if config['debug_mode'] else 'Off'}")
-    print("=" * 60 + "\n")
-    
-    # Inițializează aplicația cu configurația din .env
-    app = CameraFiltersAutomation(
-        chaturbate_url=config['chaturbate_url'],
-        stripchat_url=config['stripchat_url'],
-        camsoda_url=config['camsoda_url'],
-        output_mode=config['output_mode'],
-        quality=config['quality']
-    )
-    app.run()
+        print("   ❌ Camsoda: Dezactivat")
 
+    # Afiseaza setarile de taste
+    print("\n⌨️  Setari taste:")
+    print(f"   Hold: {config['hold_ms']}ms")
+    print(f"   Delay: {config['delay_ms']}ms")
+    print(f"   Durata filtru: {config['filter_duration']}s")
+    print(f"   Tasta inchidere filtru: {config['filter_close_key'] or 'Reapasa tastele de activare'}")
+    print("=" * 60 + "\n")
+
+    # Creeaza instanta aplicatiei cu configuratia incarcata
+    app = TipKeyAutomation(
+        chaturbate_url=config["chaturbate_url"],
+        stripchat_url=config["stripchat_url"],
+        camsoda_url=config["camsoda_url"],
+        key_rules=key_rules,
+        hold_ms=config["hold_ms"],
+        delay_ms=config["delay_ms"],
+        filter_duration=config["filter_duration"],
+        filter_close_key=config["filter_close_key"],
+    )
+
+    # Porneste aplicatia si tine-o activa
+    try:
+        app.run_forever()
+    except KeyboardInterrupt:
+        print("\n🛑 Aplicatie oprita de utilizator.")
+    finally:
+        app.stop()

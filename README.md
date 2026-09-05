@@ -1,212 +1,265 @@
-# 🚀 Quick Start Guide - Multi-Platform AR Filter System
+# AR Filter System V1
 
-## 📦 Installing Dependencies
+## Descriere Generala
 
-```bash
-pip install -r requirements.txt
-```
+AR Filter System V1 este un sistem automatizat de aplicare a filtrelor AR bazat pe tipuri (tips) primite pe platformele de streaming live. Sistemul asculta evenimente in timp real de la Chaturbate, Stripchat si Camsoda, si declanseaza automat taste configurate pentru a activa filtre AR.
 
-## ⚙️ Environment Configuration (IMPORTANT!)
+## Caracteristici Principale
 
-The system uses `.env` files for configuration. Two environments are available:
+- ✅ **Multi-Platform**: Suporta Chaturbate, Stripchat si Camsoda
+- ✅ **Automatizare Completa**: Declanseaza automat taste la primirea tipurilor
+- ✅ **Queue Management**: Gestioneaza coada de filtre cu prioritati
+- ✅ **UI Web**: Interfata web pentru monitorizare coada in timp real
+- ✅ **Teste Integrate**: Mock server pentru testare fara API-uri reale
+- ✅ **Trigger Manual**: Activare filtre manual prin combinatii de taste
+- ✅ **Configurabil**: Settings complete prin fisiere .env
+- ✅ **Logging Avansat**: Loguri detaliate pentru debugging
 
-### Test Mode (Default)
-
-Used for testing with the local mock server.
-
-**Automatic activation:**
-The `.env` file is already configured for test mode.
-
-**Manual activation (optional):**
-
-```bash
-# Windows
-copy .env.test .env
-
-# Linux/Mac
-cp .env.test .env
-```
-
-### Production Mode
-
-Used with real APIs. **Requires API keys!**
-
-1. Complete `.env.production` with your real API keys
-2. Activate it:
-
-```bash
-# Windows
-copy .env.production .env
-
-# Linux/Mac
-cp .env.production .env
-```
-
-**🎯 Shortcut:** Run `switch_env.bat` on Windows to use the interactive menu!
-
-📖 **Full details:** See [ENV_GUIDE.md](ENV_GUIDE.md)
-
----
-
-## 🎯 Quick Start
-
-### Step 1: Start the Mock Server
-
-In a terminal:
-
-```bash
-python tests/mock_server.py
-```
-
-You should see:
-
-```
-============================================================
-🚀 AR Filter System - Mock API Server
-============================================================
-
-📡 Available platforms:
-   • Chaturbate: http://127.0.0.1:5000/events/chaturbate
-   • Stripchat:  http://127.0.0.1:5000/events/stripchat
-   • Camsoda:    http://127.0.0.1:5000/events/camsoda
-
-🌐 Open http://127.0.0.1:5000 for documentation
-============================================================
-```
-
-### Step 2: Run the Tests (Optional)
-
-In a second terminal:
-
-```bash
-python tests/test_multi_platform.py
-```
-
-This script will automatically test all three platforms.
-
-### Step 3: Start the Main Application
-
-```bash
-python main.py
-```
-
-You will be asked to select a camera. Choose the index of the camera you want to use.
-
-### Step 4: Test the Filters
-
-**Option A: Browser (Recommended)**
-
-1. Open http://127.0.0.1:5000 in your browser
-2. Click the test links for each platform
-3. Watch the filters activate in the AR application
-
-**Option B: Keyboard (Without Server)**
-In the AR application, press:
-
-* `1` - Activate the Sparkles filter
-* `2` - Activate the Big Eyes filter
-* `3` - Activate the Cyber Mask filter
-* `q` - Close the application
-
-## 🎨 Available Filters
-
-| Tokens | Key | Filter     | Duration |
-| ------ | --- | ---------- | -------- |
-| 33     | 1   | Sparkles   | 10s      |
-| 99     | 2   | Big Eyes   | 20s      |
-| 200    | 3   | Cyber Mask | 30s      |
-
-## 🔧 Configuration
-
-### Enabling/Disabling Platforms
-
-Edit `main.py`:
-
-```python
-# Enable all platforms:
-CHATURBATE_URL = "http://127.0.0.1:5000/events/chaturbate"
-STRIPCHAT_URL = "http://127.0.0.1:5000/events/stripchat"
-CAMSODA_URL = "http://127.0.0.1:5000/events/camsoda"
-
-# Disable Stripchat:
-CHATURBATE_URL = "http://127.0.0.1:5000/events/chaturbate"
-STRIPCHAT_URL = None
-CAMSODA_URL = "http://127.0.0.1:5000/events/camsoda"
-```
-
-### Changing the Output Mode
-
-```python
-app = CameraFiltersAutomation(
-    chaturbate_url=CHATURBATE_URL,
-    stripchat_url=STRIPCHAT_URL,
-    camsoda_url=CAMSODA_URL,
-    output_mode="window",  # or "vcam" for a virtual camera
-    quality="1080p"        # or "4K"
-)
-```
-
-## 📚 Detailed Documentation
-
-For complete information about the architecture, data normalization, and error handling, see:
-
-* **[MULTI_PLATFORM_GUIDE.md](MULTI_PLATFORM_GUIDE.md)** - Complete guide
-
-## 🐛 Troubleshooting
-
-### Error: "Cannot connect to server"
-
-* Make sure `mock_server.py` is running
-* Make sure port 5000 is not blocked
-
-### Error: "No cameras detected"
-
-* Make sure a camera is connected
-* On Windows, allow camera access in Settings
-
-### Filters do not activate
-
-* Check the console for errors
-* Make sure the token amount is exactly 33, 99, or 200
-* Make sure the listeners started successfully
-
-### An API is not responding
-
-The system will display:
-
-```
-⚠️ Stripchat API connection failed. Retrying in 5s...
-```
-
-The other platforms will continue to work normally.
-
-## 📞 Project Structure
+## Structura Proiect
 
 ```
 AR_Filter_System_V1/
-├── main.py                          # Main application
-├── requirements.txt                 # Python dependencies
-├── MULTI_PLATFORM_GUIDE.md         # Detailed documentation
-├── README_QUICK_START.md           # This file
-│
-├── core/
-│   ├── OutputManager.py            # Video output manager
-│   ├── ChaturbateListener.py       # Chaturbate listener
-│   ├── StripchatListener.py        # Stripchat listener
-│   └── CamsodaListener.py          # Camsoda listener
-│
-├── filters/
-│   ├── BigEyeFilter.py             # Big Eyes filter
-│   ├── FaceMask3DFilter.py         # 3D face mask filter
-│   └── RainSparkleFilter.py        # Particle filter
-│
-└── tests/
-    ├── mock_server.py              # Test server
-    └── test_multi_platform.py      # Automated test script
+├── main.py                    # Aplicatie principala
+├── queue_ui_server.py         # Server Flask pentru UI web
+├── requirements.txt           # Dependente Python
+├── .env                       # Configurare activa (generat)
+├── .env.test                  # Configurare TEST mode
+├── .env.production            # Configurare PRODUCTION mode
+├── core/                      # Module core sistem
+│   ├── ChaturbateListener.py # Listener Chaturbate API
+│   ├── StripchatListener.py  # Listener Stripchat API
+│   └── CamsodaListener.py    # Listener Camsoda API
+├── templates/                 # Template-uri HTML
+│   ├── queue.html            # UI vizualizare coada
+│   └── menu.html             # UI overlay menu
+├── tests/                     # Suite de teste
+│   ├── mock_server.py        # Mock API server pentru teste
+│   └── test_key_sender.py    # Test keyboard simulation
+├── recordings/                # Director video recordings (optional)
+├── output/                    # Director output logs si rapoarte
+├── setup.bat                  # Script instalare automata
+├── install.bat                # Script instalare dependente
+├── run.bat                    # Script pornire/oprire program
+└── switch_env.bat            # Script comutare TEST/PRODUCTION
 ```
 
-## 🎉 Success!
+## Cerinte Sistem
 
-If you have reached this point and everything is working, your AR Filter System now supports three platforms simultaneously! 🚀
+- **Python**: 3.8 sau mai nou
+- **Sistem Operare**: Windows (cu suport pentru scripturi BAT)
+- **RAM**: Minim 2GB recomandat
+- **Retea**: Conexiune internet stabila pentru API calls
 
-For questions or troubleshooting, consult the detailed documentation in `MULTI_PLATFORM_GUIDE.md`.
+## Instalare Rapida
+
+### Metoda 1: Instalare Automata (Recomandat)
+
+```batch
+# Ruleaza script-ul de instalare automata
+setup.bat
+```
+
+### Metoda 2: Instalare Manuala
+
+```batch
+# 1. Instaleaza dependentele
+pip install -r requirements.txt
+
+# 2. Creaza directoare necesare
+mkdir recordings output
+
+# 3. Configureaza environment
+copy .env.test .env
+```
+
+## Configurare
+
+### TEST Mode (Recomandat pentru inceput)
+
+```batch
+# Activeaza TEST mode
+switch_env.bat
+# Selecteaza optiunea [1]
+
+# Porneste mock server
+python tests\mock_server.py
+
+# In alt terminal, porneste aplicatia
+python main.py
+```
+
+### PRODUCTION Mode
+
+```batch
+# Editeaza .env.production cu API keys reale
+notepad .env.production
+
+# Activeaza PRODUCTION mode
+switch_env.bat
+# Selecteaza optiunea [2]
+
+# Porneste aplicatia
+python main.py
+```
+
+## Utilizare
+
+### Pornire Program
+
+```batch
+# Metoda 1: Folosind script-ul run.bat
+run.bat
+# Selecteaza optiunea [1] - Porneste Programul
+
+# Metoda 2: Direct cu Python
+python main.py
+```
+
+### Monitorizare Coada
+
+Deschide in browser:
+```
+http://127.0.0.1:8080/queue
+```
+
+### Trigger Manual Filtre
+
+- **Ctrl+1**: Activeaza filtrul #1
+- **Ctrl+2**: Activeaza filtrul #2
+- **Ctrl+3**: Activeaza filtrul #3
+- ... (configurabil pana la 9)
+
+### Oprire Program
+
+```batch
+# Folosind run.bat
+run.bat
+# Selecteaza optiunea [2] - Opreste Programul
+
+# SAU apasa Ctrl+C in consola Python
+```
+
+## Arhitectura Sistem
+
+```
+┌─────────────────┐
+│  Platform APIs  │  (Chaturbate, Stripchat, Camsoda)
+└────────┬────────┘
+         │ HTTP Polling
+         ↓
+┌─────────────────┐
+│   Listeners     │  (Core modules)
+│   - Chaturbate  │
+│   - Stripchat   │
+│   - Camsoda     │
+└────────┬────────┘
+         │ Event normalization
+         ↓
+┌─────────────────┐
+│ FilterAutomation│  (main.py)
+│   - Queue Mgmt  │
+│   - Priority    │
+│   - Processing  │
+└────────┬────────┘
+         │
+         ├─────────────────┐
+         ↓                 ↓
+┌─────────────────┐  ┌──────────────┐
+│   KeySender     │  │  Queue UI    │
+│ (pynput-based)  │  │  (Flask SSE) │
+└─────────────────┘  └──────────────┘
+```
+
+## Flow Date
+
+1. **Listener** → Poll API endpoint la interval configurat
+2. **Event Normalization** → Converteste raspunsuri in format uniform
+3. **Queue Management** → Adauga tip in coada cu prioritate
+4. **Worker Thread** → Proceseaza coada FIFO
+5. **KeySender** → Simuleaza taste pentru activare filtru
+6. **UI Update** → Broadcast update prin SSE la browser
+
+## Tehnologii Utilizate
+
+- **Python 3.8+**: Limbaj principal
+- **Flask 3.1.2**: Web framework pentru UI
+- **pynput 1.7.7**: Keyboard control si global listeners
+- **python-dotenv 1.0.1**: Environment configuration management
+- **requests**: HTTP client pentru API calls
+- **threading**: Multi-threading pentru listeners si workers
+
+## Debugging
+
+### Verificare Status
+
+```batch
+run.bat
+# Selecteaza optiunea [5] - Verifica Status
+```
+
+### Vizualizare Loguri
+
+```batch
+run.bat
+# Selecteaza optiunea [3] - Vizualizeaza Loguri
+```
+
+### Test Mock Server
+
+```batch
+# Porneste mock server
+python tests\mock_server.py
+
+# In alt terminal, testeaza endpoint
+curl http://127.0.0.1:5000/events/chaturbate
+```
+
+## Probleme Comune
+
+### Programul nu detecteaza taste
+
+- Asigura-te ca fereastra Python ramane deschisa
+- Verifica ca pynput este instalat corect
+- Ruleaza ca Administrator daca e necesar
+
+### Eroare conexiune API
+
+- Verifica conexiunea internet
+- Confirma ca API keys sunt valide (PRODUCTION mode)
+- Verifica ca mock_server.py ruleaza (TEST mode)
+
+### Coada nu se actualizeaza in UI
+
+- Verifica ca queue_ui_server.py ruleaza
+- Reincarca pagina browser
+- Verifica port 8080 nu e folosit de alta aplicatie
+
+## Contributie
+
+Pentru a contribui la dezvoltarea proiectului:
+
+1. Fork repository-ul
+2. Creaza branch nou pentru feature
+3. Implementeaza si testeaza modificarile
+4. Creaza Pull Request cu descriere detaliata
+
+## Licenta
+
+Proiect privat - Toate drepturile rezervate.
+
+## Contact & Suport
+
+Pentru probleme sau intrebari, deschide un Issue pe GitHub.
+
+## Versiuni
+
+- **V1.0**: Release initial cu suport multi-platform
+- **V2.0**: (In dezvoltare) Branch curent cu imbunatatiri
+
+## Link-uri Utile
+
+- [Ghid Instalare Detaliat](INSTALARE.md)
+- [Ghid Utilizare](UTILIZARE.md)
+- [Documentatie Arhitectura](ARHITECTURA.md)
+- [Documentatie API Integration](API_INTEGRATION.md)
+- [Ghid Dezvoltatori](DEZVOLTARE.md)
